@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp } from "firebase/app";
 import {
   getDatabase,
   ref as dbRef,
@@ -9,22 +9,22 @@ import {
   push as dbPush,
   remove as dbRemove,
   serverTimestamp,
-} from 'firebase/database';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+} from "firebase/database";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 // Firebase web app configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyC1bA0cy_lX565piyVbu84CGe6wnofsGBU",
-  authDomain: "my-app-78849.firebaseapp.com",
-  projectId: "my-app-78849",
-  storageBucket: "my-app-78849.firebasestorage.app",
-  messagingSenderId: "963186646615",
-  appId: "1:963186646615:web:8875f06a70440ec9b08d12",
-  measurementId: "G-8ZMR0X3M9D",
-  databaseURL: "https://my-app-78849-default-rtdb.asia-southeast1.firebasedatabase.app",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 };
 
-const VAPID_KEY = "BNFPYQ3GIC_zT9b2RUbJ4IPd50BoUZXMJ9OQ4jLDgVQcBND6ZNTXsezN9HqBU_j9SF5-zzaqR7KmQJ69JBlMqNk";
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -38,7 +38,7 @@ try {
   messaging = getMessaging(app);
 } catch (err) {
   // Messaging not supported in this browser (e.g. no service worker)
-  console.warn('Firebase Messaging not supported:', err.message);
+  console.warn("Firebase Messaging not supported:", err.message);
 }
 
 /**
@@ -51,16 +51,16 @@ export const requestNotificationPermission = async () => {
 
   try {
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.warn('Notification permission denied');
+    if (permission !== "granted") {
+      console.warn("Notification permission denied");
       return null;
     }
 
     const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-    console.log('FCM Token:', token);
+    console.log("FCM Token:", token);
     return token;
   } catch (error) {
-    console.error('Error getting FCM token:', error);
+    console.error("Error getting FCM token:", error);
     return null;
   }
 };
@@ -78,8 +78,7 @@ export const onForegroundMessage = (callback) => {
 // Realtime chat helpers (couple-scoped at chats/<coupleId>/messages)
 // ────────────────────────────────────────────────────────────
 
-const messagesRef = (coupleId) =>
-  dbRef(db, `chats/${coupleId}/messages`);
+const messagesRef = (coupleId) => dbRef(db, `chats/${coupleId}/messages`);
 
 /**
  * Subscribe to the live message stream for a couple.
@@ -89,7 +88,11 @@ const messagesRef = (coupleId) =>
  * @param {(messages: Array) => void} cb  receives messages sorted ascending by createdAt
  */
 export const subscribeMessages = (coupleId, cb) => {
-  const q = dbQuery(messagesRef(coupleId), orderByChild('createdAt'), limitToLast(500));
+  const q = dbQuery(
+    messagesRef(coupleId),
+    orderByChild("createdAt"),
+    limitToLast(500),
+  );
   const unsub = onValue(q, (snapshot) => {
     const list = [];
     snapshot.forEach((child) => {
