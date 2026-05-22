@@ -1,0 +1,237 @@
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import api from './utils/api';
+import Onboarding from './screens/Onboarding';
+import Dashboard from './screens/Dashboard';
+import Gallery from './screens/Gallery';
+import Chat from './screens/Chat';
+import Timeline from './screens/Timeline';
+import Profile from './screens/Profile';
+import MemoryDetail from './screens/MemoryDetail';
+import SpecialMoments from './screens/SpecialMoments';
+import Login from './screens/Login';
+import Albums from './screens/Albums';
+import MemoryRecap from './screens/MemoryRecap';
+import Calendar from './screens/Calendar';
+import PartnerProfile from './screens/PartnerProfile';
+import AlbumDetail from './screens/AlbumDetail';
+import PhotoView from './screens/PhotoView';
+import ChatMedia from './screens/ChatMedia';
+import BottomNav from './components/BottomNav';
+import AdminLayout from './admin/AdminLayout';
+import AdminDashboard from './admin/screens/AdminDashboard';
+import UserManagement from './admin/screens/UserManagement';
+import MemoriesManager from './admin/screens/MemoriesManager';
+import AlbumsManager from './admin/screens/AlbumsManager';
+import ChatManager from './admin/screens/ChatManager';
+import CalendarManager from './admin/screens/CalendarManager';
+import TimelineManager from './admin/screens/TimelineManager';
+import MomentsManager from './admin/screens/MomentsManager';
+import AdminSettings from './admin/screens/AdminSettings';
+import AlbumDetailAdmin from './admin/screens/AlbumDetailAdmin';
+import ActivityMonitor from './admin/screens/ActivityMonitor';
+import NotificationsManager from './admin/screens/NotificationsManager';
+import './index.css';
+
+const resolveShouldUseDark = (theme = 'light') => {
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return theme === 'dark' || (theme === 'system' && prefersDark);
+};
+
+const applyTheme = (theme = 'light') => {
+  document.body.classList.toggle('dark-mode', resolveShouldUseDark(theme));
+};
+
+const App = () => {
+  const [bootstrapped, setBootstrapped] = useState(false);
+  const [preferredTheme, setPreferredTheme] = useState('light');
+
+  // Apply current theme state whenever it changes.
+  useEffect(() => {
+    applyTheme(preferredTheme);
+  }, [preferredTheme]);
+
+  // If user selected "system", react to OS theme changes live.
+  useEffect(() => {
+    const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    const onSystemThemeChange = () => {
+      if (preferredTheme === 'system') {
+        applyTheme('system');
+      }
+    };
+    media?.addEventListener?.('change', onSystemThemeChange);
+
+    let cancelled = false;
+
+    api.refreshToken()
+      .then((ok) => {
+        if (!ok) {
+          localStorage.removeItem('user');
+          localStorage.removeItem('currentUser');
+          if (!cancelled) {
+            setPreferredTheme('light');
+            applyTheme('light');
+          }
+          return;
+        }
+
+        return api.getMe()
+          .then((me) => {
+            if (cancelled) return;
+            const theme = me?.preferredTheme || 'light';
+            setPreferredTheme(theme);
+            applyTheme(theme);
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setPreferredTheme('light');
+              applyTheme('light');
+            }
+          });
+      })
+      .finally(() => {
+        if (!cancelled) setBootstrapped(true);
+      });
+
+    return () => {
+      cancelled = true;
+      media?.removeEventListener?.('change', onSystemThemeChange);
+    };
+  }, [preferredTheme]);
+
+  // On boot, always attempt silent refresh from the httpOnly refresh cookie.
+  // If it succeeds, hydrate user prefs (including theme) from DB.
+  useEffect(() => {
+    let cancelled = false;
+
+    api.refreshToken()
+      .then((ok) => {
+        if (!ok) {
+          localStorage.removeItem('user');
+          localStorage.removeItem('currentUser');
+          if (!cancelled) setPreferredTheme('light');
+          return;
+        }
+
+        return api.getMe()
+          .then((me) => {
+            if (cancelled) return;
+            setPreferredTheme(me?.preferredTheme || 'light');
+          })
+          .catch(() => {
+            if (!cancelled) setPreferredTheme('light');
+          });
+      })
+      .finally(() => {
+        if (!cancelled) setBootstrapped(true);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!bootstrapped) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sub)' }}>
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <Router>
+      <AnimatePresence mode="wait">
+        <Routes>
+          {/* Consumer Routes (Fixed Width Mobile Container) */}
+          <Route element={<MobileContainer />}>
+            <Route path="/" element={<Onboarding />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
+            <Route path="/dashboard" element={<WithNav><Dashboard /></WithNav>} />
+            <Route path="/gallery" element={<WithNav><Gallery /></WithNav>} />
+            <Route path="/albums" element={<WithNav><Albums /></WithNav>} />
+            <Route path="/album/:albumId" element={<AlbumDetail />} />
+            <Route path="/album/:albumId/photo/:id" element={<PhotoView />} />
+            <Route path="/gallery/photo/:id" element={<PhotoView />} />
+            <Route path="/chat-media/photo/:id" element={<PhotoView />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/calendar" element={<WithNav><Calendar /></WithNav>} />
+            <Route path="/timeline" element={<WithNav><Timeline /></WithNav>} />
+            <Route path="/profile" element={<WithNav><Profile /></WithNav>} />
+            <Route path="/memory/:id" element={<MemoryDetail />} />
+            <Route path="/celebration" element={<SpecialMoments />} />
+            <Route path="/recap" element={<MemoryRecap />} />
+            <Route path="/partner-profile" element={<PartnerProfile />} />
+            <Route path="/chat-media" element={<ChatMedia />} />
+          </Route>
+
+          {/* Admin Routes (Full Width Desktop) */}
+          <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="memories" element={<MemoriesManager />} />
+            <Route path="albums" element={<AlbumsManager />} />
+            <Route path="albums/:albumId" element={<AlbumDetailAdmin />} />
+            <Route path="chat" element={<ChatManager />} />
+            <Route path="calendar" element={<CalendarManager />} />
+            <Route path="timeline" element={<TimelineManager />} />
+            <Route path="moments" element={<MomentsManager />} />
+            <Route path="activity" element={<ActivityMonitor />} />
+            <Route path="notifications" element={<NotificationsManager />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
+        </Routes>
+      </AnimatePresence>
+    </Router>
+  );
+};
+
+const MobileContainer = () => (
+  <div className="mobile-container">
+    <Outlet />
+  </div>
+);
+
+// Guards /admin/* — only users with role === 'admin' may pass.
+// Verifies against the backend so a stale localStorage value can't be spoofed.
+const RequireAdmin = ({ children }) => {
+  const [state, setState] = useState({ loading: true, allowed: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getMe()
+      .then((me) => {
+        if (!cancelled) setState({ loading: false, allowed: me?.role === 'admin' });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ loading: false, allowed: false });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (state.loading) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sub)' }}>
+        Loading admin space...
+      </div>
+    );
+  }
+  if (!state.allowed) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
+const WithNav = ({ children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ 
+      flex: 1, 
+      overflowY: 'auto', 
+      paddingBottom: '90px', 
+      WebkitOverflowScrolling: 'touch' 
+    }} className="hide-scrollbar">
+      {children}
+    </div>
+    <BottomNav />
+  </div>
+);
+
+export default App;

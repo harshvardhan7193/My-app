@@ -1,0 +1,237 @@
+:root {
+  --admin-sidebar-bg: #1C1818;
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --admin-sidebar-active: var(--blush-pink);
+  --admin-content-bg: #F9F7F6;
+  --admin-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --admin-header-height: 70px;
+  --admin-sidebar-width: 260px;
+  --admin-sidebar-collapsed-width: 80px;
+}
+
+body.dark-mode {
+  --admin-content-bg: #121010;
+  --admin-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--admin-content-bg);
+  color: var(--text-main);
+  font-family: var(--font-body);
+}
+
+.admin-sidebar {
+  width: var(--admin-sidebar-width);
+  background-color: var(--admin-sidebar-bg);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 1000;
+}
+
+.admin-sidebar.collapsed {
+  width: var(--admin-sidebar-collapsed-width);
+}
+
+.sidebar-header {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-logo {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--blush-pink);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-item:hover {
+  background-color: var(--admin-sidebar-hover);
+  color: white;
+}
+
+.nav-item.active {
+  background-color: var(--blush-pink);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 183, 197, 0.3);
+}
+
+.admin-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-header {
+  height: var(--admin-header-height);
+  background: var(--header-bg);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+}
+
+.admin-content {
+  padding: 32px;
+  flex: 1;
+}
+
+.admin-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--admin-card-shadow);
+  border: 1px solid var(--border-light);
+}
+
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.stat-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-info h3 {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.stat-info p {
+  font-size: 14px;
+  color: var(--text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.admin-section-title {
+  margin-bottom: 24px;
+}
+
+.admin-section-title h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.admin-section-title p {
+  color: var(--text-sub);
+}
+
+.admin-table-container {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 16px;
+  color: var(--text-sub);
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.admin-table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 15px;
+}
+
+.admin-badge {
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-badge.pink { background: var(--card-accent-pink); color: var(--blush-pink); }
+.admin-badge.purple { background: var(--card-accent-purple); color: #9c27b0; }
+
+.admin-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+@media (max-width: 1024px) {
+  .admin-sidebar {
+    width: var(--admin-sidebar-collapsed-width);
+  }
+  .sidebar-logo, .nav-item span {
+    display: none;
+  }
+}
+
+/* Scrollbar for admin */
+.admin-main ::-webkit-scrollbar {
+  width: 6px;
+  display: block;
+}
+
+.admin-main ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-main ::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 10px;
+}
