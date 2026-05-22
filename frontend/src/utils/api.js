@@ -6,11 +6,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
  */
 class ApiClient {
   constructor() {
-    this.accessToken = null;
+    this.accessToken = localStorage.getItem('accessToken') || null;
   }
 
   setAccessToken(token) {
-    this.accessToken = token;
+    this.accessToken = token || null;
+    if (token) {
+      localStorage.setItem('accessToken', token);
+    } else {
+      localStorage.removeItem('accessToken');
+    }
   }
 
   getHeaders(options = {}) {
@@ -88,8 +93,10 @@ class ApiClient {
         this.setAccessToken(data.accessToken);
         return true;
       }
+      this.setAccessToken(null);
       return false;
     } catch (err) {
+      this.setAccessToken(null);
       return false;
     }
   }
@@ -102,7 +109,7 @@ class ApiClient {
       body: { userId, password },
     });
     this.setAccessToken(data.accessToken);
-    // Keep a non-sensitive user snapshot for screens that read it; access token stays in memory only.
+    // Keep user snapshot + persisted access token for tab/browser restarts.
     localStorage.setItem('user', JSON.stringify(data.user));
     return data.user;
   }
@@ -471,7 +478,7 @@ class ApiClient {
 
 const api = new ApiClient();
 
-// Note: access token is intentionally NOT persisted to localStorage (XSS risk).
-// On app boot, App.jsx calls api.refreshToken() to silently re-issue it from the httpOnly cookie.
+// Access token is persisted in localStorage by request.
+// App boot still attempts refreshToken() to rotate/renew session from httpOnly cookie.
 
 export default api;

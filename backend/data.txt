@@ -1,7 +1,0 @@
-mongodb+srv://harshvardhan7193_db_user:4TjVSHMvtDAj37pi@cluster0.pbkc74d.mongodb.net/?appName=Cluster0
-
-
-
-#mongodb+srv://harshvardhanpanc145_db_user:c250dDKZTn6l3zln@cluster0.lhjqm8r.mongodb.net/?appName=Cluster0
-
-
