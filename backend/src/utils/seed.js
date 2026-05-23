@@ -53,6 +53,15 @@ const seed = async () => {
       bio: 'Artist, dreamer, your favourite person.',
     });
 
+    const admin = await User.create({
+      name: 'Admin',
+      email: 'admin@example.com',
+      password: 'admin123',
+      role: 'admin',
+      location: 'HQ',
+      bio: 'Application administrator.',
+    });
+
     console.log('👤 Users created');
 
     // Create couple
@@ -66,6 +75,9 @@ const seed = async () => {
       { _id: { $in: [alex._id, sarah._id] } },
       { coupleId: couple._id }
     );
+
+    // Admin shares the couple scope so couple-scoped admin endpoints work
+    await User.updateOne({ _id: admin._id }, { coupleId: couple._id });
 
     console.log('💕 Couple created');
 
@@ -161,7 +173,8 @@ const seed = async () => {
     console.log('\n✅ Database seeded successfully!');
     console.log(`\n   Login credentials:`);
     console.log(`   Male:   alex@example.com / love123`);
-    console.log(`   Female: sarah@example.com / love123\n`);
+    console.log(`   Female: sarah@example.com / love123`);
+    console.log(`   Admin:  admin@example.com / admin123\n`);
 
     process.exit(0);
   } catch (error) {

@@ -45,21 +45,23 @@ class ApiClient {
     try {
       const response = await fetch(url, config);
 
-      if (response.status === 401) {
-        // Token expired — try to refresh
+      if (response.status === 401 && endpoint !== '/auth/login') {
+        // Try a silent refresh once. If it works, retry the original request.
         const refreshed = await this.refreshToken();
         if (refreshed) {
-          // Retry original request with new token
           headers.set('Authorization', `Bearer ${this.accessToken}`);
           const retryResponse = await fetch(url, config);
           return this.handleResponse(retryResponse);
-        } else {
-          // Refresh failed — clear local storage & redirect to login
-          localStorage.removeItem('user');
-          localStorage.removeItem('accessToken');
-          window.location.href = '/login';
-          throw new Error('Session expired. Please log in again.');
         }
+
+        // Refresh failed — clear stored session but DON'T hard-redirect.
+        // Let route guards (e.g. RequireAdmin / consumer guards) decide where to send the user.
+        this.setAccessToken(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('currentUser');
+        const err = new Error('Session expired. Please log in again.');
+        err.code = 'UNAUTHORIZED';
+        throw err;
       }
 
       return this.handleResponse(response);

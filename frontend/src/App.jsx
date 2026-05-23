@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import api from './utils/api';
@@ -32,6 +32,7 @@ import AdminSettings from './admin/screens/AdminSettings';
 import AlbumDetailAdmin from './admin/screens/AlbumDetailAdmin';
 import ActivityMonitor from './admin/screens/ActivityMonitor';
 import NotificationsManager from './admin/screens/NotificationsManager';
+import AdminLogin from './admin/screens/AdminLogin';
 import './index.css';
 
 const resolveShouldUseDark = (theme = 'light') => {
@@ -62,70 +63,54 @@ const App = () => {
     };
     media?.addEventListener?.('change', onSystemThemeChange);
 
-    let cancelled = false;
-
-    api.refreshToken()
-      .then((ok) => {
-        if (!ok) {
-          localStorage.removeItem('user');
-          localStorage.removeItem('currentUser');
-          if (!cancelled) {
-            setPreferredTheme('light');
-            applyTheme('light');
-          }
-          return;
-        }
-
-        return api.getMe()
-          .then((me) => {
-            if (cancelled) return;
-            const theme = me?.preferredTheme || 'light';
-            setPreferredTheme(theme);
-            applyTheme(theme);
-          })
-          .catch(() => {
-            if (!cancelled) {
-              setPreferredTheme('light');
-              applyTheme('light');
-            }
-          });
-      })
-      .finally(() => {
-        if (!cancelled) setBootstrapped(true);
-      });
-
     return () => {
-      cancelled = true;
       media?.removeEventListener?.('change', onSystemThemeChange);
     };
   }, [preferredTheme]);
 
-  // On boot, always attempt silent refresh from the httpOnly refresh cookie.
-  // If it succeeds, hydrate user prefs (including theme) from DB.
+  // On boot, prefer stored access token, then fallback to refresh cookie.
   useEffect(() => {
     let cancelled = false;
 
-    api.refreshToken()
-      .then((ok) => {
-        if (!ok) {
+    const hydrateFromMe = async () => {
+      const me = await api.getMe();
+      if (!cancelled) setPreferredTheme(me?.preferredTheme || 'light');
+    };
+
+    (async () => {
+      try {
+        if (api.accessToken) {
+          await hydrateFromMe();
+          return;
+        }
+
+        const refreshed = await api.refreshToken();
+        if (!refreshed) {
           localStorage.removeItem('user');
           localStorage.removeItem('currentUser');
           if (!cancelled) setPreferredTheme('light');
           return;
         }
 
-        return api.getMe()
-          .then((me) => {
-            if (cancelled) return;
-            setPreferredTheme(me?.preferredTheme || 'light');
-          })
-          .catch(() => {
-            if (!cancelled) setPreferredTheme('light');
-          });
-      })
-      .finally(() => {
+        await hydrateFromMe();
+      } catch {
+        // If token path fails, attempt one silent refresh retry.
+        try {
+          const refreshed = await api.refreshToken();
+          if (refreshed) {
+            await hydrateFromMe();
+            return;
+          }
+        } catch {
+          // ignore
+        }
+        localStorage.removeItem('user');
+        localStorage.removeItem('currentUser');
+        if (!cancelled) setPreferredTheme('light');
+      } finally {
         if (!cancelled) setBootstrapped(true);
-      });
+      }
+    })();
 
     return () => { cancelled = true; };
   }, []);
@@ -166,6 +151,7 @@ const App = () => {
           </Route>
 
           {/* Admin Routes (Full Width Desktop) */}
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
@@ -195,16 +181,18 @@ const MobileContainer = () => (
 // Guards /admin/* — only users with role === 'admin' may pass.
 // Verifies against the backend so a stale localStorage value can't be spoofed.
 const RequireAdmin = ({ children }) => {
-  const [state, setState] = useState({ loading: true, allowed: false });
+  const [state, setState] = useState({ loading: true, allowed: false, authed: false });
 
   useEffect(() => {
     let cancelled = false;
     api.getMe()
       .then((me) => {
-        if (!cancelled) setState({ loading: false, allowed: me?.role === 'admin' });
+        if (!cancelled) {
+          setState({ loading: false, allowed: me?.role === 'admin', authed: !!me });
+        }
       })
       .catch(() => {
-        if (!cancelled) setState({ loading: false, allowed: false });
+        if (!cancelled) setState({ loading: false, allowed: false, authed: false });
       });
     return () => { cancelled = true; };
   }, []);
@@ -216,6 +204,7 @@ const RequireAdmin = ({ children }) => {
       </div>
     );
   }
+  if (!state.authed) return <Navigate to="/admin/login" replace />;
   if (!state.allowed) return <Navigate to="/dashboard" replace />;
   return children;
 };
