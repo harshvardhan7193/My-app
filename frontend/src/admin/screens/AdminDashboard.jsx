@@ -39,10 +39,10 @@ const AdminDashboard = () => {
   ];
 
   const recentActivity = [
-    { id: 1, user: 'Sarah', action: 'uploaded photos to', target: 'Summer in Bali', time: '2 hours ago', link: '/admin/albums' },
-    { id: 2, user: 'Alex', action: 'added event:', target: 'Anniversary Dinner', time: '5 hours ago', link: '/admin/calendar' },
-    { id: 3, user: 'Sarah', action: 'changed mood to', target: 'Feeling Loved 🥰', time: '8 hours ago', link: '/admin/users' },
-    { id: 4, user: 'Alex', action: 'created album', target: 'Our Dog: Milo', time: '1 day ago', link: '/admin/albums' },
+    { id: 1, user: 'Neha', action: 'uploaded photos to', target: 'Summer in Bali', time: '2 hours ago', link: '/admin/albums' },
+    { id: 2, user: 'Harsh', action: 'added event:', target: 'Anniversary Dinner', time: '5 hours ago', link: '/admin/calendar' },
+    { id: 3, user: 'Neha', action: 'changed mood to', target: 'Feeling Loved 🥰', time: '8 hours ago', link: '/admin/users' },
+    { id: 4, user: 'Harsh', action: 'created album', target: 'Our Dog: Milo', time: '1 day ago', link: '/admin/albums' },
   ];
 
   const shortcuts = [
@@ -123,7 +123,7 @@ const AdminDashboard = () => {
                   <tr key={a.id} onClick={() => navigate(a.link)} style={{ cursor: 'pointer' }}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: a.user === 'Sarah' ? 'var(--card-accent-pink)' : 'var(--card-accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>{a.user[0]}</div>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: a.user === 'Neha' ? 'var(--card-accent-pink)' : 'var(--card-accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>{a.user[0]}</div>
                         {a.user}
                       </div>
                     </td>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getMe, updateMe, getPartner, getAllUsers, updateUser } from '../controllers/userController.js';
+import { getMe, updateMe, getPartner, getAllUsers, updateUser, deregisterFcmToken } from '../controllers/userController.js';
 import { protect, injectCoupleId } from '../middleware/auth.js';
 import { adminOnly } from '../middleware/adminAuth.js';
 
@@ -10,6 +10,7 @@ router.use(protect, injectCoupleId);
 // Self-service: any authenticated couple member
 router.get('/me', getMe);
 router.put('/me', updateMe);
+router.delete('/me/fcm-token', deregisterFcmToken);
 router.get('/partner', getPartner);
 
 // Admin-only: listing all users and editing any user

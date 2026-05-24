@@ -1,6 +1,7 @@
 import Story from '../models/Story.js';
 import Highlight from '../models/Highlight.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { sendPushToPartner } from '../services/notificationService.js';
 
 // @desc    Create a new story
 // @route   POST /api/stories
@@ -23,6 +24,13 @@ export const createStory = asyncHandler(async (req, res) => {
   });
 
   const populatedStory = await Story.findById(story._id).populate('user', 'name avatar role');
+
+  const senderName = req.user.name || 'your partner';
+  await sendPushToPartner(req.user._id, req.coupleId, {
+    title: `✨ ${senderName} added a story`,
+    body: story.caption || "Tap to view their new story",
+    data: { url: `/dashboard` }
+  }, 'media');
 
   res.status(201).json(populatedStory);
 });

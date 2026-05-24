@@ -11,7 +11,7 @@ export const getMe = asyncHandler(async (req, res) => {
 // @desc    Update own profile
 // @route   PUT /api/users/me
 export const updateMe = asyncHandler(async (req, res) => {
-  const allowedFields = ['name', 'location', 'birthday', 'avatar', 'mood', 'bio', 'fcmToken', 'preferredTheme'];
+  const allowedFields = ['name', 'location', 'birthday', 'avatar', 'mood', 'bio', 'preferredTheme'];
   const updates = {};
 
   allowedFields.forEach((field) => {
@@ -20,8 +20,37 @@ export const updateMe = asyncHandler(async (req, res) => {
     }
   });
 
-  const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true });
+  const updateOp = { $set: updates };
+  if (req.body.fcmToken) {
+    updateOp.$addToSet = { fcmTokens: req.body.fcmToken };
+  }
+
+  let user = await User.findByIdAndUpdate(req.user._id, updateOp, { new: true, runValidators: true });
+  
+  if (user && user.fcmTokens && user.fcmTokens.length > 5) {
+    user.fcmTokens = user.fcmTokens.slice(-5);
+    user = await user.save({ validateBeforeSave: false });
+  }
+
   res.json(user);
+});
+
+// @desc    Deregister FCM Token
+// @route   DELETE /api/users/me/fcm-token
+export const deregisterFcmToken = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    res.status(400);
+    throw new Error('Token is required');
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $pull: { fcmTokens: token } },
+    { new: true }
+  );
+
+  res.json({ message: 'Token deregistered successfully' });
 });
 
 // @desc    Get partner profile

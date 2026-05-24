@@ -20,19 +20,19 @@ const formatFull = (date) =>
 
 // Per-session fake activity log (static but realistic)
 const ACTIVITY_LOG = [
-  { user: 'Alex',  action: 'Opened the app',          icon: Smartphone, time: Date.now() - 1000 * 60 * 2   },
-  { user: 'Sarah', action: 'Viewed memories',           icon: Activity,   time: Date.now() - 1000 * 60 * 14  },
-  { user: 'Alex',  action: 'Sent a message',            icon: Activity,   time: Date.now() - 1000 * 60 * 32  },
-  { user: 'Sarah', action: 'Added a calendar event',    icon: Activity,   time: Date.now() - 1000 * 60 * 58  },
-  { user: 'Alex',  action: 'Opened the app',            icon: Monitor,    time: Date.now() - 1000 * 60 * 90  },
-  { user: 'Sarah', action: 'Opened the app',            icon: Smartphone, time: Date.now() - 1000 * 60 * 120 },
-  { user: 'Alex',  action: 'Uploaded a photo to Albums',icon: Activity,   time: Date.now() - 1000 * 60 * 210 },
-  { user: 'Sarah', action: 'Changed mood status',       icon: Activity,   time: Date.now() - 1000 * 60 * 300 },
+  { user: 'Harsh', action: 'Opened the app', icon: Smartphone, time: Date.now() - 1000 * 60 * 2 },
+  { user: 'Neha', action: 'Viewed memories', icon: Activity, time: Date.now() - 1000 * 60 * 14 },
+  { user: 'Harsh', action: 'Sent a message', icon: Activity, time: Date.now() - 1000 * 60 * 32 },
+  { user: 'Neha', action: 'Added a calendar event', icon: Activity, time: Date.now() - 1000 * 60 * 58 },
+  { user: 'Harsh', action: 'Opened the app', icon: Monitor, time: Date.now() - 1000 * 60 * 90 },
+  { user: 'Neha', action: 'Opened the app', icon: Smartphone, time: Date.now() - 1000 * 60 * 120 },
+  { user: 'Harsh', action: 'Uploaded a photo to Albums', icon: Activity, time: Date.now() - 1000 * 60 * 210 },
+  { user: 'Neha', action: 'Changed mood status', icon: Activity, time: Date.now() - 1000 * 60 * 300 },
 ];
 
 // Session data per user  (last seen & session stats)
 const SESSION_DATA = {
-  Alex: {
+  Harsh: {
     lastOnline: new Date(Date.now() - 1000 * 60 * 2),  // 2 min ago → online
     isOnline: true,
     device: 'Chrome · Windows',
@@ -42,7 +42,7 @@ const SESSION_DATA = {
     peakHour: '9:00 PM',
     weeklyData: [42, 20, 55, 35, 70, 90, 18],           // Sun→Sat minutes
   },
-  Sarah: {
+  Neha: {
     lastOnline: new Date(Date.now() - 1000 * 60 * 14),  // 14 min ago
     isOnline: false,
     device: 'Safari · iPhone',
@@ -109,7 +109,7 @@ const ActivityMonitor = () => {
       {/* User Status Cards */}
       <div className="admin-grid grid-2" style={{ marginBottom: '28px' }}>
         {users.map((user, i) => {
-          const session = SESSION_DATA[user.name.split(' ')[0]] || SESSION_DATA.Alex;
+          const session = SESSION_DATA[user.name.split(' ')[0]] || SESSION_DATA.Harsh;
           const color = userColors[i];
 
           return (
@@ -218,8 +218,8 @@ const ActivityMonitor = () => {
         </div>
         <div style={{ padding: '8px 0' }}>
           {ACTIVITY_LOG.map((entry, idx) => {
-            const isAlex = entry.user === 'Alex';
-            const color = isAlex ? 'var(--blush-pink)' : '#9c27b0';
+            const isHarsh = entry.user === 'Harsh';
+            const color = isHarsh ? 'var(--blush-pink)' : '#9c27b0';
             return (
               <motion.div
                 key={idx}

@@ -20,9 +20,9 @@ const Chat = () => {
     }
     return {
       role: 'male',
-      name: 'Alex Johnson',
-      partnerName: 'Sarah Wilson',
-      avatar: 'https://i.pravatar.cc/200?u=alex',
+      name: 'Harsh Panchal',
+      partnerName: 'Neha Panchal',
+      avatar: 'https://i.pravatar.cc/200?u=Harsh',
       partnerAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop',
     };
   }, []);
@@ -201,7 +201,7 @@ const Chat = () => {
     let newIndex = currentResultIndex + direction;
     if (newIndex < 0) newIndex = searchResults.length - 1;
     if (newIndex >= searchResults.length) newIndex = 0;
-    
+
     setCurrentResultIndex(newIndex);
     scrollToMessage(searchResults[newIndex]);
   };
@@ -274,7 +274,7 @@ const Chat = () => {
 
     if (dateStr === today.toISOString().split('T')[0]) return 'Today';
     if (dateStr === yesterday.toISOString().split('T')[0]) return 'Yesterday';
-    
+
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
@@ -323,7 +323,7 @@ const Chat = () => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       style={{
@@ -338,10 +338,10 @@ const Chat = () => {
       }}
     >
       {/* Chat Header */}
-      <div style={{ 
-        padding: '20px', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        padding: '20px',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
         background: 'var(--header-bg)',
         backdropFilter: 'blur(10px)',
@@ -354,7 +354,7 @@ const Chat = () => {
           <motion.div whileTap={{ scale: 0.9 }} onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', padding: '4px' }}>
             <ChevronLeft size={24} color="var(--text-main)" />
           </motion.div>
-          <div 
+          <div
             onClick={() => navigate('/partner-profile')}
             style={{ width: '40px', height: '40px', borderRadius: '20px', backgroundColor: 'var(--blush-pink)', overflow: 'hidden', cursor: 'pointer' }}
           >
@@ -394,7 +394,7 @@ const Chat = () => {
               }}
             >
               <Search size={18} color="var(--text-sub)" />
-              <input 
+              <input
                 autoFocus
                 placeholder="Search in conversation..."
                 value={searchQuery}
@@ -406,7 +406,7 @@ const Chat = () => {
                 onKeyPress={handleSearch}
                 style={{ flex: 1, border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--text-main)' }}
               />
-              
+
               {searchResults.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-sub)', fontSize: '12px' }}>
                   <span>{currentResultIndex + 1} of {searchResults.length}</span>
@@ -424,9 +424,9 @@ const Chat = () => {
       </div>
 
       {/* Messages */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        style={{ flex: 1, padding: '20px', overflowY: 'auto', position: 'relative' }} 
+        style={{ flex: 1, padding: '20px', overflowY: 'auto', position: 'relative' }}
         className="hide-scrollbar"
       >
         <AnimatePresence>
@@ -440,11 +440,11 @@ const Chat = () => {
               <React.Fragment key={msg.id}>
                 {showDate && (
                   <div style={{ textAlign: 'center', margin: '16px 0 24px' }}>
-                    <span style={{ 
-                      padding: '4px 16px', 
-                      backgroundColor: 'var(--date-tag-bg)', 
-                      borderRadius: '100px', 
-                      fontSize: '11px', 
+                    <span style={{
+                      padding: '4px 16px',
+                      backgroundColor: 'var(--date-tag-bg)',
+                      borderRadius: '100px',
+                      fontSize: '11px',
                       color: 'var(--date-tag-text)',
                       fontWeight: 600,
                       textTransform: 'uppercase',
@@ -465,149 +465,149 @@ const Chat = () => {
                     marginBottom: '16px'
                   }}
                 >
-              <div 
-                style={{
-                  maxWidth: '75%',
-                  padding: (msg.type === 'image' || msg.type === 'video') ? '4px' : '12px 18px',
-                  borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                  backgroundColor: highlightedId === msg.id 
-                    ? 'rgba(255, 183, 197, 0.4)' 
-                    : (isMine ? 'var(--bubble-me)' : 'var(--bubble-them)'),
-                  color: isMine ? 'var(--msg-me-text)' : 'var(--msg-them-text)',
-                  boxShadow: highlightedId === msg.id 
-                    ? '0 0 20px var(--blush-pink)' 
-                    : '0 4px 12px rgba(0,0,0,0.03)',
-                  position: 'relative',
-                  transition: 'all 0.3s ease',
-                  border: highlightedId === msg.id ? '1px solid var(--blush-pink)' : 'none',
-                  overflow: 'hidden'
-                }}
-              >
-                {msg.type === 'image' || msg.type === 'video' ? (
                   <div
-                    style={{ position: 'relative', cursor: 'pointer' }}
-                    onClick={() => openMediaViewer(msg)}
+                    style={{
+                      maxWidth: '75%',
+                      padding: (msg.type === 'image' || msg.type === 'video') ? '4px' : '12px 18px',
+                      borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                      backgroundColor: highlightedId === msg.id
+                        ? 'rgba(255, 183, 197, 0.4)'
+                        : (isMine ? 'var(--bubble-me)' : 'var(--bubble-them)'),
+                      color: isMine ? 'var(--msg-me-text)' : 'var(--msg-them-text)',
+                      boxShadow: highlightedId === msg.id
+                        ? '0 0 20px var(--blush-pink)'
+                        : '0 4px 12px rgba(0,0,0,0.03)',
+                      position: 'relative',
+                      transition: 'all 0.3s ease',
+                      border: highlightedId === msg.id ? '1px solid var(--blush-pink)' : 'none',
+                      overflow: 'hidden'
+                    }}
                   >
-                    {msg.type === 'video' ? (
-                      <video
-                        src={msg.mediaUrl}
-                        preload="metadata"
-                        muted
-                        playsInline
-                        style={{ width: '100%', borderRadius: '16px', display: 'block', backgroundColor: '#000' }}
-                      />
-                    ) : (
-                      <img
-                        src={msg.mediaUrl}
-                        style={{ width: '100%', borderRadius: '16px', display: 'block' }}
-                        alt="Attachment"
-                      />
-                    )}
-                    {msg.type === 'video' && (
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        pointerEvents: 'none',
-                      }}>
+                    {msg.type === 'image' || msg.type === 'video' ? (
+                      <div
+                        style={{ position: 'relative', cursor: 'pointer' }}
+                        onClick={() => openMediaViewer(msg)}
+                      >
+                        {msg.type === 'video' ? (
+                          <video
+                            src={msg.mediaUrl}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            style={{ width: '100%', borderRadius: '16px', display: 'block', backgroundColor: '#000' }}
+                          />
+                        ) : (
+                          <img
+                            src={msg.mediaUrl}
+                            style={{ width: '100%', borderRadius: '16px', display: 'block' }}
+                            alt="Attachment"
+                          />
+                        )}
+                        {msg.type === 'video' && (
+                          <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            pointerEvents: 'none',
+                          }}>
+                            <div style={{
+                              width: '52px',
+                              height: '52px',
+                              borderRadius: '26px',
+                              backgroundColor: 'rgba(0,0,0,0.5)',
+                              backdropFilter: 'blur(6px)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            }}>
+                              <Play size={22} color="white" fill="white" style={{ marginLeft: '3px' }} />
+                            </div>
+                          </div>
+                        )}
                         <div style={{
-                          width: '52px',
-                          height: '52px',
-                          borderRadius: '26px',
-                          backgroundColor: 'rgba(0,0,0,0.5)',
-                          backdropFilter: 'blur(6px)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                          position: 'absolute',
+                          bottom: '8px',
+                          right: '8px',
+                          background: 'rgba(0,0,0,0.3)',
+                          backdropFilter: 'blur(4px)',
+                          padding: '2px 8px',
+                          borderRadius: '10px'
                         }}>
-                          <Play size={22} color="white" fill="white" style={{ marginLeft: '3px' }} />
+                          <p style={{ fontSize: '10px', color: 'white' }}>{msgTime}</p>
                         </div>
                       </div>
+                    ) : msg.type === 'audio' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Music2 size={16} />
+                          <p style={{ fontSize: '13px', opacity: 0.85, fontWeight: 600, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {msg.mediaName || 'Audio file'}
+                          </p>
+                        </div>
+                        <audio src={msg.mediaUrl} controls style={{ width: '100%' }} preload="metadata" />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <p style={{ fontSize: '10px', opacity: 0.65 }}>{formatBytes(msg.mediaSize)}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <a href={msg.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', display: 'inline-flex' }}>
+                              <ExternalLink size={14} />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => downloadAttachment(msg.mediaUrl, msg.mediaName)}
+                              style={{ color: 'inherit', display: 'inline-flex', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                            >
+                              <Download size={14} />
+                            </button>
+                            <p style={{ fontSize: '10px', opacity: 0.65 }}>{msgTime}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : msg.type === 'file' ? (
+                      <div style={{ minWidth: '220px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <FileText size={18} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {msg.mediaName || 'File attachment'}
+                            </p>
+                            <p style={{ fontSize: '10px', opacity: 0.65 }}>
+                              {[msg.mediaMimeType || 'file', formatBytes(msg.mediaSize)].filter(Boolean).join(' • ')}
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <a href={msg.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', display: 'inline-flex' }}>
+                              <ExternalLink size={14} />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => downloadAttachment(msg.mediaUrl, msg.mediaName)}
+                              style={{ color: 'inherit', display: 'inline-flex', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                            >
+                              <Download size={14} />
+                            </button>
+                          </div>
+                          <p style={{ fontSize: '10px', opacity: 0.65 }}>{msgTime}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p style={{ fontSize: '15px' }}>{msg.text}</p>
+                        <p style={{
+                          fontSize: '10px',
+                          opacity: 0.6,
+                          marginTop: '4px',
+                          textAlign: 'right'
+                        }}>{msgTime}</p>
+                      </>
                     )}
-                    <div style={{ 
-                      position: 'absolute', 
-                      bottom: '8px', 
-                      right: '8px', 
-                      background: 'rgba(0,0,0,0.3)', 
-                      backdropFilter: 'blur(4px)',
-                      padding: '2px 8px',
-                      borderRadius: '10px'
-                    }}>
-                      <p style={{ fontSize: '10px', color: 'white' }}>{msgTime}</p>
-                    </div>
                   </div>
-                ) : msg.type === 'audio' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Music2 size={16} />
-                      <p style={{ fontSize: '13px', opacity: 0.85, fontWeight: 600, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {msg.mediaName || 'Audio file'}
-                      </p>
-                    </div>
-                    <audio src={msg.mediaUrl} controls style={{ width: '100%' }} preload="metadata" />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <p style={{ fontSize: '10px', opacity: 0.65 }}>{formatBytes(msg.mediaSize)}</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <a href={msg.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', display: 'inline-flex' }}>
-                          <ExternalLink size={14} />
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => downloadAttachment(msg.mediaUrl, msg.mediaName)}
-                          style={{ color: 'inherit', display: 'inline-flex', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
-                        >
-                          <Download size={14} />
-                        </button>
-                        <p style={{ fontSize: '10px', opacity: 0.65 }}>{msgTime}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : msg.type === 'file' ? (
-                  <div style={{ minWidth: '220px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FileText size={18} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {msg.mediaName || 'File attachment'}
-                        </p>
-                        <p style={{ fontSize: '10px', opacity: 0.65 }}>
-                          {[msg.mediaMimeType || 'file', formatBytes(msg.mediaSize)].filter(Boolean).join(' • ')}
-                        </p>
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <a href={msg.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', display: 'inline-flex' }}>
-                          <ExternalLink size={14} />
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => downloadAttachment(msg.mediaUrl, msg.mediaName)}
-                          style={{ color: 'inherit', display: 'inline-flex', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
-                        >
-                          <Download size={14} />
-                        </button>
-                      </div>
-                      <p style={{ fontSize: '10px', opacity: 0.65 }}>{msgTime}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p style={{ fontSize: '15px' }}>{msg.text}</p>
-                    <p style={{ 
-                      fontSize: '10px', 
-                      opacity: 0.6, 
-                      marginTop: '4px',
-                      textAlign: 'right'
-                    }}>{msgTime}</p>
-                  </>
-                )}
-              </div>
                 </motion.div>
               </React.Fragment>
             );
@@ -650,9 +650,9 @@ const Chat = () => {
         <AnimatePresence>
           {showAttachmentMenu && (
             <>
-              <div 
-                style={{ position: 'fixed', inset: 0, zIndex: 90 }} 
-                onClick={() => setShowAttachmentMenu(false)} 
+              <div
+                style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+                onClick={() => setShowAttachmentMenu(false)}
               />
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.9 }}
@@ -673,7 +673,7 @@ const Chat = () => {
                   gap: '4px'
                 }}
               >
-                <div 
+                <div
                   onClick={() => cameraInputRef.current?.click()}
                   style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
                   className="hover-bg-soft"
@@ -683,7 +683,7 @@ const Chat = () => {
                   </div>
                   <span style={{ fontSize: '14px', fontWeight: 500 }}>Camera</span>
                 </div>
-                <div 
+                <div
                   onClick={() => fileInputRef.current?.click()}
                   style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
                   className="hover-bg-soft"
@@ -698,22 +698,22 @@ const Chat = () => {
           )}
         </AnimatePresence>
 
-        <div className="premium-card" style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div className="premium-card" style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: '12px',
           padding: '8px 12px 8px 16px',
           borderRadius: '100px',
           backgroundColor: 'var(--card-bg)'
         }}>
-          <input 
+          <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
             accept="*/*"
             style={{ display: 'none' }}
           />
-          <input 
+          <input
             type="file"
             ref={cameraInputRef}
             onChange={handleFileUpload}
@@ -721,43 +721,43 @@ const Chat = () => {
             capture="environment"
             style={{ display: 'none' }}
           />
-          <Paperclip 
-            size={20} 
-            color="var(--text-muted)" 
-            style={{ cursor: 'pointer' }} 
-            onClick={() => setShowAttachmentMenu(!showAttachmentMenu)} 
+          <Paperclip
+            size={20}
+            color="var(--text-muted)"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
           />
-          <input 
-            type="text" 
-            placeholder="Type a love note..." 
+          <input
+            type="text"
+            placeholder="Type a love note..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}
-            style={{ 
-              flex: 1, 
-              border: 'none', 
-              outline: 'none', 
+            style={{
+              flex: 1,
+              border: 'none',
+              outline: 'none',
               fontSize: '15px',
               fontFamily: 'var(--font-body)',
               background: 'transparent',
               color: 'var(--text-main)'
-            }} 
+            }}
           />
           <div style={{ display: 'flex', gap: '8px' }}>
-            <motion.div 
-              whileTap={{ scale: 0.9 }} 
+            <motion.div
+              whileTap={{ scale: 0.9 }}
               onClick={sendHeart}
               style={{ padding: '8px', color: 'var(--blush-pink)', cursor: 'pointer' }}
             >
               <Heart size={20} fill="var(--blush-pink)" />
             </motion.div>
-            <motion.div 
-              whileTap={{ scale: 0.9 }} 
+            <motion.div
+              whileTap={{ scale: 0.9 }}
               onClick={handleSendMessage}
-              style={{ 
-                width: '40px', 
-                height: '40px', 
-                borderRadius: '20px', 
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '20px',
                 backgroundColor: 'var(--blush-pink)',
                 display: 'flex',
                 alignItems: 'center',
@@ -776,9 +776,9 @@ const Chat = () => {
       <AnimatePresence>
         {showMenu && (
           <>
-            <div 
-              style={{ position: 'fixed', inset: 0, zIndex: 90 }} 
-              onClick={() => setShowMenu(false)} 
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+              onClick={() => setShowMenu(false)}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -797,7 +797,7 @@ const Chat = () => {
               }}
             >
               {['View Profile', 'Search Messages', isMuted ? 'Unmute Notifications' : 'Mute Notifications'].map((item) => (
-                <div 
+                <div
                   key={item}
                   onClick={() => {
                     if (item === 'View Profile') navigate('/partner-profile');
@@ -808,9 +808,9 @@ const Chat = () => {
                     }
                     setShowMenu(false);
                   }}
-                  style={{ 
-                    padding: '12px 16px', 
-                    fontSize: '14px', 
+                  style={{
+                    padding: '12px 16px',
+                    fontSize: '14px',
                     borderRadius: '8px',
                     cursor: 'pointer',
                     color: 'var(--text-main)'
@@ -828,9 +828,9 @@ const Chat = () => {
       <AnimatePresence>
         {showAttachmentMenu && (
           <>
-            <div 
-              style={{ position: 'fixed', inset: 0, zIndex: 90 }} 
-              onClick={() => setShowAttachmentMenu(false)} 
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+              onClick={() => setShowAttachmentMenu(false)}
             />
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.9 }}
@@ -851,7 +851,7 @@ const Chat = () => {
                 gap: '4px'
               }}
             >
-              <div 
+              <div
                 onClick={() => cameraInputRef.current?.click()}
                 style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
                 className="hover-bg-soft"
@@ -861,7 +861,7 @@ const Chat = () => {
                 </div>
                 <span style={{ fontSize: '14px', fontWeight: 500 }}>Camera</span>
               </div>
-              <div 
+              <div
                 onClick={() => fileInputRef.current?.click()}
                 style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
                 className="hover-bg-soft"

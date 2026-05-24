@@ -34,9 +34,9 @@ const Login = () => {
         role: user.role,
         name: user.name,
         email: user.email,
-        avatar: user.avatar || (user.role === 'male' ? 'https://i.pravatar.cc/200?u=alex' : 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop'),
-        partnerName: user.role === 'male' ? 'Sarah Wilson' : 'Alex Johnson',
-        partnerAvatar: user.role === 'male' ? 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop' : 'https://i.pravatar.cc/200?u=alex',
+        avatar: user.avatar || (user.role === 'male' ? 'https://i.pravatar.cc/200?u=Harsh' : 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop'),
+        partnerName: user.role === 'male' ? 'Neha Panchal' : 'Harsh Panchal',
+        partnerAvatar: user.role === 'male' ? 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop' : 'https://i.pravatar.cc/200?u=Harsh',
       };
       localStorage.setItem('currentUser', JSON.stringify(legacyUser));
 
@@ -55,14 +55,14 @@ const Login = () => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      style={{ 
-        height: '100vh', 
+      style={{
+        height: '100vh',
         padding: '40px 32px',
-        display: 'flex', 
+        display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'var(--warm-white)'
       }}
@@ -75,17 +75,17 @@ const Login = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Error Message */}
         {error && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px', 
-              color: '#c2185b', 
-              fontSize: '14px', 
-              backgroundColor: 'var(--card-accent-pink)', 
-              padding: '12px 16px', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              color: '#c2185b',
+              fontSize: '14px',
+              backgroundColor: 'var(--card-accent-pink)',
+              padding: '12px 16px',
               borderRadius: '16px',
               border: '1px solid rgba(244, 211, 211, 0.5)'
             }}
@@ -98,29 +98,29 @@ const Login = () => {
         {/* User ID Input */}
         <div style={{ position: 'relative' }}>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>User ID or Email</p>
-          <div className="premium-card" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div className="premium-card" style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: '12px',
             padding: '16px',
             borderRadius: '16px',
             backgroundColor: 'white'
           }}>
             <User size={20} color="var(--text-muted)" />
-            <input 
-              type="text" 
-              placeholder="alex or sarah" 
+            <input
+              type="text"
+              placeholder="Harsh or Neha"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               onKeyPress={handleKeyPress}
-              style={{ 
-                flex: 1, 
-                border: 'none', 
-                outline: 'none', 
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
                 fontSize: '16px',
                 background: 'transparent',
                 fontFamily: 'var(--font-body)'
-              }} 
+              }}
             />
           </div>
         </div>
@@ -128,29 +128,29 @@ const Login = () => {
         {/* Password Input */}
         <div style={{ position: 'relative' }}>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Password</p>
-          <div className="premium-card" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div className="premium-card" style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: '12px',
             padding: '16px',
             borderRadius: '16px',
             backgroundColor: 'white'
           }}>
             <Lock size={20} color="var(--text-muted)" />
-            <input 
-              type={showPassword ? "text" : "password"} 
-              placeholder="••••••••" 
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyPress={handleKeyPress}
-              style={{ 
-                flex: 1, 
-                border: 'none', 
-                outline: 'none', 
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
                 fontSize: '16px',
                 background: 'transparent',
                 fontFamily: 'var(--font-body)'
-              }} 
+              }}
             />
             <div onClick={() => setShowPassword(!showPassword)} style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -160,7 +160,7 @@ const Login = () => {
       </div>
 
       <div style={{ marginTop: 'auto', paddingBottom: '40px' }}>
-        <motion.button 
+        <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleSignIn}
@@ -170,10 +170,10 @@ const Login = () => {
         >
           {loading ? 'Signing In...' : 'Sign In'} <ArrowRight size={20} />
         </motion.button>
-        
+
         <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
           Private access space for partners.<br />
-          Use <span style={{ fontWeight: 600 }}>alex</span> or <span style={{ fontWeight: 600 }}>sarah</span> with password <span style={{ fontWeight: 600 }}>love123</span>
+          Use <span style={{ fontWeight: 600 }}>Harsh</span> or <span style={{ fontWeight: 600 }}>Neha</span> with password <span style={{ fontWeight: 600 }}>love123</span>
         </p>
       </div>
 

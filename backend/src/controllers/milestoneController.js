@@ -1,5 +1,6 @@
 import Milestone from '../models/Milestone.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { sendPushToPartner } from '../services/notificationService.js';
 
 export const getMilestones = asyncHandler(async (req, res) => {
   const milestones = await Milestone.find({ coupleId: req.coupleId }).sort({ order: 1 });
@@ -9,6 +10,13 @@ export const getMilestones = asyncHandler(async (req, res) => {
 export const createMilestone = asyncHandler(async (req, res) => {
   const count = await Milestone.countDocuments({ coupleId: req.coupleId });
   const milestone = await Milestone.create({ ...req.body, order: count, coupleId: req.coupleId });
+
+  await sendPushToPartner(req.user._id, req.coupleId, {
+    title: `⭐ New milestone added!`,
+    body: milestone.title,
+    data: { url: `/timeline` }
+  }, 'milestones');
+
   res.status(201).json(milestone);
 });
 

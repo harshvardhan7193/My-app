@@ -140,7 +140,7 @@ const ChatManager = () => {
                   <tr key={msg.id}>
                     <td style={{ paddingLeft: '24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: senderLabel === 'Sarah' ? 'var(--card-accent-pink)' : 'var(--card-accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>{senderLabel[0]}</div>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: senderLabel === 'Neha' ? 'var(--card-accent-pink)' : 'var(--card-accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>{senderLabel[0]}</div>
                         <span style={{ fontWeight: 600 }}>{senderLabel}</span>
                       </div>
                     </td>

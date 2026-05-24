@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 
 import connectDB from './src/config/db.js';
 import { initFirebase } from './src/config/firebase.js';
+import { startScheduler, stopScheduler } from './src/services/scheduler.js';
 import { errorHandler, notFound } from './src/middleware/errorHandler.js';
 
 // Route imports
@@ -84,6 +85,7 @@ app.use(errorHandler);
 const start = async () => {
   await connectDB();
   initFirebase();
+  startScheduler();
 
   const server = app.listen(PORT, () => {
     console.log(`\n🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
@@ -101,6 +103,7 @@ const start = async () => {
       } catch (e) {
         console.error('Mongo disconnect error:', e);
       }
+      stopScheduler();
       process.exit(err ? 1 : 0);
     });
 

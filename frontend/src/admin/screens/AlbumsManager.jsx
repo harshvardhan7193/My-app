@@ -28,7 +28,7 @@ const AlbumsManager = () => {
 
   const handleCreate = () => {
     if (!newAlbum.title.trim()) { toast.error('Please enter an album title'); return; }
-    addAlbum({ ...newAlbum, cover: newCoverPreview || `https://picsum.photos/seed/${Date.now()}/400/500`, date: new Date().toISOString().split('T')[0], createdBy: 'Alex' });
+    addAlbum({ ...newAlbum, cover: newCoverPreview || `https://picsum.photos/seed/${Date.now()}/400/500`, date: new Date().toISOString().split('T')[0], createdBy: 'Harsh' });
     toast.success('Album created! 📸');
     setShowCreateModal(false);
     setNewAlbum({ title: '', description: '', cover: '' });

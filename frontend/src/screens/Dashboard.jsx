@@ -10,11 +10,12 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [showMoodPicker, setShowMoodPicker] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  
+
   const [currentUser, setCurrentUser] = useState(null);
   const [partnerUser, setPartnerUser] = useState(null);
   const [settings, setSettings] = useState(null);
   const [memories, setMemories] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Load dashboard data
@@ -23,17 +24,19 @@ const Dashboard = () => {
       try {
         setLoading(true);
         // Parallel requests
-        const [me, partner, coupleSettings, memoriesData] = await Promise.all([
+        const [me, partner, coupleSettings, memoriesData, unreadData] = await Promise.all([
           api.getMe(),
           api.getPartner().catch(() => null),
           api.getSettings(),
-          api.getMemories()
+          api.getMemories(),
+          api.getUnreadNotificationCount().catch(() => ({ count: 0 }))
         ]);
 
         setCurrentUser(me);
         setPartnerUser(partner);
         setSettings(coupleSettings);
         setMemories(memoriesData.memories || memoriesData || []);
+        setUnreadCount(unreadData?.count || 0);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
       } finally {
@@ -116,7 +119,7 @@ const Dashboard = () => {
   const recentMemories = memories.slice(1, 6);
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
@@ -131,18 +134,38 @@ const Dashboard = () => {
           </h2>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <motion.div 
+          <motion.div
             whileTap={{ scale: 0.9 }}
-            onClick={() => navigate('/chat')}
-            className="premium-card" 
-            style={{ padding: '10px', borderRadius: '14px', cursor: 'pointer' }}
+            onClick={() => navigate('/notifications')}
+            className="premium-card"
+            style={{ padding: '10px', borderRadius: '14px', cursor: 'pointer', position: 'relative' }}
           >
             <Bell size={20} color="var(--text-secondary)" />
+            {unreadCount > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                background: '#FF4D4D',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                width: '18px',
+                height: '18px',
+                borderRadius: '9px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid var(--bg-main)'
+              }}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </div>
+            )}
           </motion.div>
-          <motion.div 
+          <motion.div
             whileTap={{ scale: 0.9 }}
             onClick={() => navigate('/profile')}
-            className="premium-card" 
+            className="premium-card"
             style={{ padding: '10px', borderRadius: '14px', cursor: 'pointer' }}
           >
             <SettingsIcon size={20} color="var(--text-secondary)" />
@@ -154,15 +177,15 @@ const Dashboard = () => {
 
       {/* Hero Memory Card */}
       {heroMemory ? (
-        <motion.div 
-          variants={itemVariants} 
+        <motion.div
+          variants={itemVariants}
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate(`/memory/${heroMemory._id}`)}
-          className="premium-card" 
-          style={{ 
-            padding: 0, 
-            height: '380px', 
-            position: 'relative', 
+          className="premium-card"
+          style={{
+            padding: 0,
+            height: '380px',
+            position: 'relative',
             overflow: 'hidden',
             marginBottom: '32px',
             borderRadius: '32px',
@@ -203,12 +226,12 @@ const Dashboard = () => {
           )}
         </motion.div>
       ) : (
-        <motion.div 
-          variants={itemVariants} 
+        <motion.div
+          variants={itemVariants}
           onClick={() => navigate('/gallery')}
-          className="premium-card" 
-          style={{ 
-            padding: '40px 24px', 
+          className="premium-card"
+          style={{
+            padding: '40px 24px',
             textAlign: 'center',
             marginBottom: '32px',
             borderRadius: '32px',
@@ -223,12 +246,12 @@ const Dashboard = () => {
 
       {/* Anniversary Counter */}
       <motion.div variants={itemVariants} style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
-        <motion.div 
+        <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/timeline')}
-          className="premium-card" 
-          style={{ 
-            flex: 1, 
+          className="premium-card"
+          style={{
+            flex: 1,
             background: 'var(--card-accent-pink)',
             display: 'flex',
             flexDirection: 'column',
@@ -243,11 +266,11 @@ const Dashboard = () => {
           <h4 style={{ fontSize: '28px', color: 'var(--text-main)' }}>{daysTogether}</h4>
           <p style={{ fontSize: '12px', color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Days Together</p>
         </motion.div>
-        <motion.div 
+        <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/calendar')}
-          className="premium-card" style={{ 
-            flex: 1, 
+          className="premium-card" style={{
+            flex: 1,
             background: 'var(--card-accent-purple)',
             display: 'flex',
             flexDirection: 'column',
@@ -265,9 +288,9 @@ const Dashboard = () => {
 
       {/* Stories and Highlights (Instagram Style) */}
       <motion.div variants={itemVariants}>
-        <StoriesAndHighlights 
-          currentUser={currentUser} 
-          partnerUser={partnerUser} 
+        <StoriesAndHighlights
+          currentUser={currentUser}
+          partnerUser={partnerUser}
         />
       </motion.div>
 
@@ -277,23 +300,23 @@ const Dashboard = () => {
         <div style={{ display: 'flex', gap: '12px' }}>
           <div className="premium-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px', background: 'var(--chat-bg)', border: 'none' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '24px', overflow: 'hidden', marginBottom: '8px' }}>
-              <img src={partnerUser?.avatar || 'https://i.pravatar.cc/200?u=sarah'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Partner Avatar" />
+              <img src={partnerUser?.avatar || 'https://i.pravatar.cc/200?u=Neha'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Partner Avatar" />
             </div>
             <p style={{ fontSize: '10px', color: 'var(--text-sub)', marginBottom: '4px' }}>{partnerUser?.name?.split(' ')[0] || 'Partner'} is</p>
             <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)' }}>
               {partnerUser?.mood || 'Checking in...'}
             </p>
           </div>
-          <motion.div 
+          <motion.div
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowMoodPicker(true)}
-            className="premium-card" 
-            style={{ 
-              flex: 1, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              padding: '16px', 
+            className="premium-card"
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '16px',
               background: 'var(--card-bg)',
               border: '2px dashed var(--dusty-rose)',
               cursor: 'pointer'
@@ -321,8 +344,8 @@ const Dashboard = () => {
           </div>
           <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '10px' }} className="hide-scrollbar">
             {recentMemories.map((m) => (
-              <motion.div 
-                key={m._id} 
+              <motion.div
+                key={m._id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate(`/memory/${m._id}`)}
                 style={{ minWidth: '140px', cursor: 'pointer' }}
@@ -367,17 +390,17 @@ const Dashboard = () => {
       {/* Modals */}
       <AnimatePresence>
         {showMoodPicker && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'flex-end' }}
           >
-            <div 
-              style={{ position: 'absolute', inset: 0 }} 
-              onClick={() => setShowMoodPicker(false)} 
+            <div
+              style={{ position: 'absolute', inset: 0 }}
+              onClick={() => setShowMoodPicker(false)}
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -389,14 +412,14 @@ const Dashboard = () => {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                 {moods.map((m) => (
-                  <motion.div 
+                  <motion.div
                     key={m.label}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => handleSelectMood(m)}
-                    style={{ 
-                      padding: '16px', 
-                      borderRadius: '20px', 
-                      background: 'var(--chat-bg)', 
+                    style={{
+                      padding: '16px',
+                      borderRadius: '20px',
+                      background: 'var(--chat-bg)',
                       textAlign: 'center',
                       cursor: 'pointer'
                     }}
@@ -411,17 +434,17 @@ const Dashboard = () => {
         )}
 
         {showAddModal && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'flex-end' }}
           >
-            <div 
-              style={{ position: 'absolute', inset: 0 }} 
-              onClick={() => setShowAddModal(false)} 
+            <div
+              style={{ position: 'absolute', inset: 0 }}
+              onClick={() => setShowAddModal(false)}
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}

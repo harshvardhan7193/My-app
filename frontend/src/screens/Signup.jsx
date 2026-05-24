@@ -7,20 +7,20 @@ const Signup = () => {
   const navigate = useNavigate();
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ x: 300, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -300, opacity: 0 }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      style={{ 
-        height: '100vh', 
+      style={{
+        height: '100vh',
         padding: '40px 32px',
-        display: 'flex', 
+        display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'var(--warm-white)'
       }}
     >
-      <motion.div 
+      <motion.div
         whileTap={{ scale: 0.9 }}
         onClick={() => navigate(-1)}
         style={{ marginBottom: '32px', color: 'var(--text-secondary)', cursor: 'pointer' }}
@@ -34,9 +34,9 @@ const Signup = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <InputGroup icon={User} label="Your Name" placeholder="Alex" />
-        <InputGroup icon={Mail} label="Email Address" placeholder="alex@example.com" />
-        <InputGroup icon={Heart} label="Partner's Email" placeholder="sarah@example.com" />
+        <InputGroup icon={User} label="Your Name" placeholder="Harsh" />
+        <InputGroup icon={Mail} label="Email Address" placeholder="Harsh@example.com" />
+        <InputGroup icon={Heart} label="Partner's Email" placeholder="Neha@example.com" />
       </div>
 
       <div style={{ marginTop: 'auto', paddingBottom: '40px' }}>
@@ -44,7 +44,7 @@ const Signup = () => {
           By signing up, you agree to our <span style={{ textDecoration: 'underline' }}>Privacy Policy</span> and <span style={{ textDecoration: 'underline' }}>Terms of Service</span>.
         </p>
 
-        <motion.button 
+        <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/dashboard')}
@@ -61,26 +61,26 @@ const Signup = () => {
 const InputGroup = ({ icon: Icon, label, placeholder }) => (
   <div style={{ position: 'relative' }}>
     <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-    <div className="premium-card" style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
+    <div className="premium-card" style={{
+      display: 'flex',
+      alignItems: 'center',
       gap: '12px',
       padding: '16px',
       borderRadius: '16px',
       backgroundColor: 'white'
     }}>
       <Icon size={20} color="var(--text-muted)" />
-      <input 
-        type="text" 
-        placeholder={placeholder} 
-        style={{ 
-          flex: 1, 
-          border: 'none', 
-          outline: 'none', 
+      <input
+        type="text"
+        placeholder={placeholder}
+        style={{
+          flex: 1,
+          border: 'none',
+          outline: 'none',
           fontSize: '16px',
           background: 'transparent',
           fontFamily: 'var(--font-body)'
-        }} 
+        }}
       />
     </div>
   </div>

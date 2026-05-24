@@ -33,7 +33,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 
 // Firebase Cloud Messaging — used for push notifications
-let messaging = null;
+export let messaging = null;
 try {
   messaging = getMessaging(app);
 } catch (err) {

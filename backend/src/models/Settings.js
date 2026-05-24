@@ -8,6 +8,15 @@ const settingsSchema = new mongoose.Schema({
   theme:           { type: String, enum: ['light', 'dark', 'system'], default: 'light' },
   twoFactor:       { type: Boolean, default: false },
   debugMode:       { type: Boolean, default: false },
+  notifications: {
+    pushEnabled:     { type: Boolean, default: true },
+    memories:        { type: Boolean, default: true },
+    stories:         { type: Boolean, default: true },
+    events:          { type: Boolean, default: true },
+    milestones:      { type: Boolean, default: true },
+    chat:            { type: Boolean, default: true },
+    adminBroadcasts: { type: Boolean, default: true },
+  },
 }, { timestamps: true });
 
 export default mongoose.model('Settings', settingsSchema);

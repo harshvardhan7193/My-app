@@ -11,6 +11,9 @@ const notificationSchema = new mongoose.Schema({
   sentAt:       { type: Date },
   opens:        { type: Number, default: 0 },
   coupleId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Couple', required: true },
+  userId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  readAt:       { type: Date, default: null },
+  data:         { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 
 notificationSchema.index({ coupleId: 1, createdAt: -1 });

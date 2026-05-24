@@ -44,7 +44,7 @@ const MemoriesManager = () => {
 
   const handleAddMemory = () => {
     if (!newMemory.title.trim()) { toast.error('Please enter a title'); return; }
-    addMemory({ ...newMemory, img: previewImg || `https://picsum.photos/seed/${Date.now()}/400/400`, uploadedBy: 'Alex', favorite: false });
+    addMemory({ ...newMemory, img: previewImg || `https://picsum.photos/seed/${Date.now()}/400/400`, uploadedBy: 'Harsh', favorite: false });
     toast.success('Memory created! 🌟');
     setShowAddModal(false);
     setNewMemory({ title: '', category: 'Dates', date: '', img: '' });
@@ -139,7 +139,7 @@ const MemoriesManager = () => {
                     <td style={{ color: 'var(--text-sub)', fontSize: '13px' }}>{m.date}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px' }}>
-                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: m.uploadedBy === 'Sarah' ? 'var(--card-accent-pink)' : 'var(--card-accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>{m.uploadedBy[0]}</div>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: m.uploadedBy === 'Neha' ? 'var(--card-accent-pink)' : 'var(--card-accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>{m.uploadedBy[0]}</div>
                         {m.uploadedBy}
                       </div>
                     </td>

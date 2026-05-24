@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
   mood:     { type: String, default: '' },
   bio:      { type: String, default: '', maxlength: 200 },
   preferredTheme: { type: String, enum: ['light', 'dark', 'system'], default: 'light' },
-  fcmToken: { type: String, default: '' },           // Firebase Cloud Messaging token
+  fcmTokens: [{ type: String }],           // Firebase Cloud Messaging tokens (multi-device)
   isOnline: { type: Boolean, default: false },
   lastSeen: { type: Date, default: Date.now },
   coupleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Couple' },

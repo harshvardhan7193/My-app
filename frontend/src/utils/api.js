@@ -407,11 +407,53 @@ class ApiClient {
     });
   }
 
+  sendChatNotification(notification) {
+    return this.request('/notifications/chat-push', {
+      method: 'POST',
+      body: notification,
+    });
+  }
+
   getNotificationHistory() {
     return this.request('/notifications/history');
   }
 
-  // --- Stories API ---
+  getMyNotifications(page = 1) {
+    return this.request(`/notifications/mine?page=${page}`);
+  }
+
+  getUnreadNotificationCount() {
+    return this.request('/notifications/unread-count');
+  }
+
+  markNotificationRead(id) {
+    return this.request(`/notifications/${id}/read`, {
+      method: 'PATCH',
+    });
+  }
+
+  registerFcmToken(token) {
+    return this.updateMe({ fcmToken: token });
+  }
+
+  deregisterFcmToken(token) {
+    return this.request('/users/me/fcm-token', {
+      method: 'DELETE',
+      body: { token },
+    });
+  }
+
+  // --- Settings API ---
+  getSettings() {
+    return this.request('/settings');
+  }
+
+  updateSettings(data) {
+    return this.request('/settings', {
+      method: 'PUT',
+      body: data,
+    });
+  }
   getStories() {
     return this.request('/stories');
   }

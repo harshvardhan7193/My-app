@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import api from './utils/api';
+import { NotificationToastProvider } from './components/NotificationToastProvider';
+import { useNotifications } from './hooks/useNotifications';
 import Onboarding from './screens/Onboarding';
 import Dashboard from './screens/Dashboard';
 import Gallery from './screens/Gallery';
 import Chat from './screens/Chat';
 import Timeline from './screens/Timeline';
 import Profile from './screens/Profile';
+import EditProfile from './screens/EditProfile';
 import MemoryDetail from './screens/MemoryDetail';
 import SpecialMoments from './screens/SpecialMoments';
 import Login from './screens/Login';
@@ -18,6 +21,8 @@ import PartnerProfile from './screens/PartnerProfile';
 import AlbumDetail from './screens/AlbumDetail';
 import PhotoView from './screens/PhotoView';
 import ChatMedia from './screens/ChatMedia';
+import NotificationSettings from './screens/NotificationSettings';
+import NotificationCenter from './screens/NotificationCenter';
 import BottomNav from './components/BottomNav';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/screens/AdminDashboard';
@@ -47,6 +52,11 @@ const applyTheme = (theme = 'light') => {
 const App = () => {
   const [bootstrapped, setBootstrapped] = useState(false);
   const [preferredTheme, setPreferredTheme] = useState('light');
+  
+  // Call useNotifications hook. It will auto-register if permission was already granted,
+  // and do nothing if not authenticated yet.
+  const isAuthenticated = bootstrapped && !!api.accessToken;
+  useNotifications(isAuthenticated);
 
   // Apply current theme state whenever it changes.
   useEffect(() => {
@@ -124,51 +134,56 @@ const App = () => {
   }
 
   return (
-    <Router>
-      <AnimatePresence mode="wait">
-        <Routes>
-          {/* Consumer Routes (Fixed Width Mobile Container) */}
-          <Route element={<MobileContainer />}>
-            <Route path="/" element={<Onboarding />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Navigate to="/login" replace />} />
-            <Route path="/dashboard" element={<WithNav><Dashboard /></WithNav>} />
-            <Route path="/gallery" element={<WithNav><Gallery /></WithNav>} />
-            <Route path="/albums" element={<WithNav><Albums /></WithNav>} />
-            <Route path="/album/:albumId" element={<AlbumDetail />} />
-            <Route path="/album/:albumId/photo/:id" element={<PhotoView />} />
-            <Route path="/gallery/photo/:id" element={<PhotoView />} />
-            <Route path="/chat-media/photo/:id" element={<PhotoView />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/calendar" element={<WithNav><Calendar /></WithNav>} />
-            <Route path="/timeline" element={<WithNav><Timeline /></WithNav>} />
-            <Route path="/profile" element={<WithNav><Profile /></WithNav>} />
-            <Route path="/memory/:id" element={<MemoryDetail />} />
-            <Route path="/celebration" element={<SpecialMoments />} />
-            <Route path="/recap" element={<MemoryRecap />} />
-            <Route path="/partner-profile" element={<PartnerProfile />} />
-            <Route path="/chat-media" element={<ChatMedia />} />
-          </Route>
+    <NotificationToastProvider>
+      <Router>
+        <AnimatePresence mode="wait">
+          <Routes>
+            {/* Consumer Routes (Fixed Width Mobile Container) */}
+            <Route element={<MobileContainer />}>
+              <Route path="/" element={<Onboarding />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Navigate to="/login" replace />} />
+              <Route path="/dashboard" element={<WithNav><Dashboard /></WithNav>} />
+              <Route path="/gallery" element={<WithNav><Gallery /></WithNav>} />
+              <Route path="/albums" element={<WithNav><Albums /></WithNav>} />
+              <Route path="/album/:albumId" element={<AlbumDetail />} />
+              <Route path="/album/:albumId/photo/:id" element={<PhotoView />} />
+              <Route path="/gallery/photo/:id" element={<PhotoView />} />
+              <Route path="/chat-media/photo/:id" element={<PhotoView />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/calendar" element={<WithNav><Calendar /></WithNav>} />
+              <Route path="/timeline" element={<WithNav><Timeline /></WithNav>} />
+              <Route path="/profile" element={<WithNav><Profile /></WithNav>} />
+              <Route path="/edit-profile" element={<EditProfile />} />
+              <Route path="/memory/:id" element={<MemoryDetail />} />
+              <Route path="/celebration" element={<SpecialMoments />} />
+              <Route path="/recap" element={<MemoryRecap />} />
+              <Route path="/partner-profile" element={<PartnerProfile />} />
+              <Route path="/chat-media" element={<ChatMedia />} />
+              <Route path="/notification-settings" element={<NotificationSettings />} />
+              <Route path="/notifications" element={<NotificationCenter />} />
+            </Route>
 
-          {/* Admin Routes (Full Width Desktop) */}
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="memories" element={<MemoriesManager />} />
-            <Route path="albums" element={<AlbumsManager />} />
-            <Route path="albums/:albumId" element={<AlbumDetailAdmin />} />
-            <Route path="chat" element={<ChatManager />} />
-            <Route path="calendar" element={<CalendarManager />} />
-            <Route path="timeline" element={<TimelineManager />} />
-            <Route path="moments" element={<MomentsManager />} />
-            <Route path="activity" element={<ActivityMonitor />} />
-            <Route path="notifications" element={<NotificationsManager />} />
-            <Route path="settings" element={<AdminSettings />} />
-          </Route>
-        </Routes>
-      </AnimatePresence>
-    </Router>
+            {/* Admin Routes (Full Width Desktop) */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="memories" element={<MemoriesManager />} />
+              <Route path="albums" element={<AlbumsManager />} />
+              <Route path="albums/:albumId" element={<AlbumDetailAdmin />} />
+              <Route path="chat" element={<ChatManager />} />
+              <Route path="calendar" element={<CalendarManager />} />
+              <Route path="timeline" element={<TimelineManager />} />
+              <Route path="moments" element={<MomentsManager />} />
+              <Route path="activity" element={<ActivityMonitor />} />
+              <Route path="notifications" element={<NotificationsManager />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
+          </Routes>
+        </AnimatePresence>
+      </Router>
+    </NotificationToastProvider>
   );
 };
 

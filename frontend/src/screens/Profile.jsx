@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Shield, Bell, Palette, LogOut, ChevronRight, Heart } from 'lucide-react';
+import { Settings, Shield, Bell, Palette, LogOut, ChevronRight, Heart, Edit2 } from 'lucide-react';
 import api from '../utils/api';
 
 const Profile = () => {
@@ -16,9 +16,9 @@ const Profile = () => {
     }
     return {
       role: 'male',
-      name: 'Alex Johnson',
-      partnerName: 'Sarah Wilson',
-      avatar: 'https://i.pravatar.cc/200?u=alex',
+      name: 'Harsh Panchal',
+      partnerName: 'Neha Panchal',
+      avatar: 'https://i.pravatar.cc/200?u=Harsh',
       partnerAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop',
     };
   }, []);
@@ -89,24 +89,25 @@ const Profile = () => {
   };
 
   const menuItems = [
+    { icon: Edit2, label: 'Edit Profile', color: '#D3E4F4', onClick: () => navigate('/edit-profile') },
     { icon: Palette, label: 'Theme Personalization', color: '#F4D3D3', onClick: toggleTheme },
-    { icon: Bell, label: 'Notification Settings', color: '#EBE8F3' },
+    { icon: Bell, label: 'Notification Settings', color: '#EBE8F3', onClick: () => navigate('/notification-settings') },
     { icon: Shield, label: 'Privacy & Security', color: '#FFF5F2' },
     { icon: Settings, label: 'Account Preferences', color: '#FFF5F2' },
   ];
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       style={{ padding: '24px 20px' }}
     >
       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
         <div style={{ position: 'relative', width: '120px', height: '120px', margin: '0 auto 20px auto' }}>
-          <div style={{ 
-            width: '100%', 
-            height: '100%', 
-            borderRadius: '60px', 
+          <div style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '60px',
             overflow: 'hidden',
             border: '4px solid var(--card-bg)',
             boxShadow: 'var(--shadow-medium)'
@@ -151,24 +152,24 @@ const Profile = () => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {menuItems.map((item, index) => (
-          <motion.div 
+          <motion.div
             key={item.label}
             whileTap={{ scale: 0.98 }}
             onClick={item.onClick}
-            className="premium-card" 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            className="premium-card"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'space-between',
               padding: '16px 20px',
               cursor: item.onClick ? 'pointer' : 'default'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                width: '40px', 
-                height: '40px', 
-                borderRadius: '12px', 
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
                 backgroundColor: item.color === '#F4D3D3' ? 'var(--card-accent-pink)' : (item.color === '#EBE8F3' ? 'var(--card-accent-purple)' : 'var(--chat-bg)'),
                 display: 'flex',
                 alignItems: 'center',
@@ -182,14 +183,14 @@ const Profile = () => {
           </motion.div>
         ))}
 
-        <motion.div 
+        <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={handleSignOut}
-          className="premium-card" 
-          style={{ 
+          className="premium-card"
+          style={{
             marginTop: '20px',
-            display: 'flex', 
-            alignItems: 'center', 
+            display: 'flex',
+            alignItems: 'center',
             gap: '16px',
             padding: '16px 20px',
             backgroundColor: 'rgba(255, 77, 77, 0.1)',

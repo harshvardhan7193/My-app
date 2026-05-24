@@ -1,6 +1,7 @@
 import Memory from '../models/Memory.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import cloudinary from '../config/cloudinary.js';
+import { sendPushToPartner } from '../services/notificationService.js';
 
 // @desc    List all memories (with filters)
 // @route   GET /api/memories
@@ -37,6 +38,15 @@ export const createMemory = asyncHandler(async (req, res) => {
     uploadedBy: req.user._id,
     coupleId: req.coupleId,
   });
+
+  const senderName = req.user.name || 'your partner';
+  await sendPushToPartner(req.user._id, req.coupleId, {
+    title: `📸 New memory from ${senderName}`,
+    body: memory.title || "A new photo was added to your gallery",
+    imageUrl: memory.imageUrl,
+    data: { url: `/memory/${memory._id}` }
+  }, 'media');
+
   res.status(201).json(memory);
 });
 
