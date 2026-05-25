@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Bell, Heart, Calendar, Image as ImageIcon, MessageCircle, Star, ShieldAlert } from 'lucide-react';
 import api from '../utils/api';
-import moment from 'moment';
+
 
 const CATEGORY_STYLES = {
   love:      { icon: Heart,         color: '#FFB7C5' },
@@ -13,6 +13,36 @@ const CATEGORY_STYLES = {
   milestones:{ icon: Star,          color: '#FF9800' },
   system:    { icon: ShieldAlert,   color: '#607D8B' },
   default:   { icon: Bell,          color: 'var(--blush-pink)' },
+};
+
+const formatTimeAgo = (dateInput) => {
+  if (!dateInput) return '';
+  const date = new Date(dateInput);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return 'a few seconds ago';
+  
+  const minutes = Math.floor(seconds / 60);
+  if (minutes === 1) return 'a minute ago';
+  if (minutes < 60) return `${minutes} minutes ago`;
+  
+  const hours = Math.floor(minutes / 60);
+  if (hours === 1) return 'an hour ago';
+  if (hours < 24) return `${hours} hours ago`;
+  
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'a day ago';
+  if (days < 30) return `${days} days ago`;
+  
+  const months = Math.floor(days / 30);
+  if (months === 1) return 'a month ago';
+  if (months < 12) return `${months} months ago`;
+  
+  const years = Math.floor(months / 12);
+  if (years === 1) return 'a year ago';
+  return `${years} years ago`;
 };
 
 const NotificationCenter = () => {
@@ -116,7 +146,7 @@ const NotificationCenter = () => {
                     {notif.body}
                   </p>
                   <span style={{ fontSize: '11px', color: 'var(--text-sub)' }}>
-                    {moment(notif.sentAt || notif.createdAt).fromNow()}
+                    {formatTimeAgo(notif.sentAt || notif.createdAt)}
                   </span>
                 </div>
 
