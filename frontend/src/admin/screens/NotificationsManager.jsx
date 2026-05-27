@@ -120,12 +120,18 @@ const NotificationsManager = () => {
     if (!body.trim())  { toast.error('Message body is required'); return; }
     setSending(true);
     try {
+      let finalImageUrl = imageUrl || undefined;
+      if (imgMode === 'upload' && imageUrl && imageUrl.startsWith('blob:') && fileRef.current?.files?.[0]) {
+        const uploadResult = await api.uploadFile(fileRef.current.files[0]);
+        finalImageUrl = uploadResult.url;
+      }
+
       const saved = await api.sendNotification({
         title: title.trim(),
         body: body.trim(),
         target,
         category,
-        imageUrl: imageUrl || undefined,
+        imageUrl: finalImageUrl,
       });
       setHistory(prev => [saved, ...prev]);
       toast.success('🔔 Notification sent successfully!');
@@ -137,6 +143,23 @@ const NotificationsManager = () => {
       toast.error(err.message || 'Failed to send notification');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleResend = async (n) => {
+    try {
+      const saved = await api.sendNotification({
+        title: n.title,
+        body: n.body,
+        target: n.target,
+        category: n.category,
+        imageUrl: n.imageUrl || undefined,
+      });
+      setHistory(prev => [saved, ...prev]);
+      toast.success('🔔 Notification resent successfully!');
+    } catch (err) {
+      console.error('Failed to resend notification:', err);
+      toast.error(err.message || 'Failed to resend notification');
     }
   };
 
@@ -390,7 +413,8 @@ const NotificationsManager = () => {
                       <th style={{ paddingLeft: '24px' }}>Notification</th>
                       <th>Image</th>
                       <th>Category</th><th>Sent To</th><th>Status</th><th>Opens</th>
-                      <th style={{ paddingRight: '24px' }}>Time</th>
+                      <th>Time</th>
+                      <th style={{ paddingRight: '24px', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -427,7 +451,17 @@ const NotificationsManager = () => {
                             </span>
                           </td>
                           <td style={{ fontSize: '14px', fontWeight: 600 }}>{n.opens || 0}</td>
-                          <td style={{ paddingRight: '24px', fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{whenLabel}</td>
+                          <td style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{whenLabel}</td>
+                          <td style={{ paddingRight: '24px', textAlign: 'right' }}>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleResend(n)}
+                              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-light)', background: 'var(--chat-bg)', color: 'var(--text-main)', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Send size={12} /> Resend
+                            </motion.button>
+                          </td>
                         </tr>
                       );
                     })}

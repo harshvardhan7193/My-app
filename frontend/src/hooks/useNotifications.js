@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { requestNotificationPermission, messaging } from '../config/firebase';
+import { requestNotificationPermission, messaging, onForegroundMessage } from '../config/firebase';
 import api from '../utils/api';
 
 export const useNotifications = (isAuthenticated) => {
@@ -34,6 +34,22 @@ export const useNotifications = (isAuthenticated) => {
       initPush();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const unsubscribe = onForegroundMessage((payload) => {
+      console.log('Received foreground message:', payload);
+      if (Notification.permission === 'granted' && payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: payload.notification.image || '/favicon.svg'
+        });
+      }
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   const requestPermission = async () => {
     try {

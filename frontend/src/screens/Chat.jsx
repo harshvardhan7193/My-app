@@ -132,6 +132,13 @@ const Chat = () => {
         sender: String(me._id),
         type: 'text',
       });
+      api.logActivity('Sent a message', 'chat').catch(() => {});
+      if (partner?._id) {
+        api.sendChatNotification({
+          recipientId: String(partner._id),
+          messagePreview: text
+        }).catch((err) => console.error('Failed to send chat push notification:', err));
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
       setInputText(text);
@@ -152,6 +159,13 @@ const Chat = () => {
         sender: String(me._id),
         type: 'text',
       });
+      api.logActivity('Sent a message', 'chat').catch(() => {});
+      if (partner?._id) {
+        api.sendChatNotification({
+          recipientId: String(partner._id),
+          messagePreview: '❤️'
+        }).catch((err) => console.error('Failed to send chat push notification:', err));
+      }
     } catch (err) {
       console.error('Failed to send heart:', err);
     }
@@ -243,6 +257,13 @@ const Chat = () => {
         mediaResourceType: uploadRes.resourceType,
         sender: String(me._id),
       });
+      api.logActivity('Sent a message', 'chat').catch(() => {});
+      if (partner?._id) {
+        api.sendChatNotification({
+          recipientId: String(partner._id),
+          messagePreview: `Sent a photo/file: ${mediaKindLabel}`
+        }).catch((err) => console.error('Failed to send chat push notification:', err));
+      }
       setUploadProgress(100);
       setTimeout(() => {
         setUploadProgress(null);

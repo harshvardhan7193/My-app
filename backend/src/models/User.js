@@ -16,6 +16,11 @@ const userSchema = new mongoose.Schema({
   isOnline: { type: Boolean, default: false },
   lastSeen: { type: Date, default: Date.now },
   coupleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Couple' },
+  coordinates: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    updatedAt: { type: Date }
+  },
 }, { timestamps: true });
 
 // Hash password before saving

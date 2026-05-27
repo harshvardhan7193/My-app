@@ -82,6 +82,34 @@ export const sendChatNotification = asyncHandler(async (req, res) => {
 
 // --- User Facing APIs (Phase 8) ---
 
+// @desc    Send a nudge to partner
+// @route   POST /api/notifications/nudge
+export const sendNudge = asyncHandler(async (req, res) => {
+  const { message } = req.body;
+  const partnerRole = req.user.role === 'male' ? 'female' : 'male';
+  const partner = await User.findOne({ coupleId: req.coupleId, role: partnerRole });
+
+  if (!partner) {
+    return res.status(404).json({ message: 'Partner not found' });
+  }
+
+  const cacheKey = `nudge_${partner._id}`;
+  const now = Date.now();
+  if (global[cacheKey] && now - global[cacheKey] < 30000) {
+    return res.status(200).json({ message: 'Rate limited (30s debounce)' });
+  }
+  global[cacheKey] = now;
+
+  const senderName = req.user.name.split(' ')[0];
+  await sendPushToUser(partner._id, {
+    title: 'Thinking of you! ❤️',
+    body: message || `${senderName} sent you a nudge.`,
+    data: { url: '/profile' }
+  }, 'nudge');
+
+  res.status(200).json({ message: 'Nudge sent successfully' });
+});
+
 // @desc    Get user notification history
 // @route   GET /api/notifications/mine
 export const getMyNotifications = asyncHandler(async (req, res) => {

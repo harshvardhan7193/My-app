@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 import api from './utils/api';
 import { NotificationToastProvider } from './components/NotificationToastProvider';
 import { useNotifications } from './hooks/useNotifications';
+import { useLocationTracker } from './hooks/useLocationTracker';
 import Onboarding from './screens/Onboarding';
 import Dashboard from './screens/Dashboard';
 import Gallery from './screens/Gallery';
@@ -57,6 +58,7 @@ const App = () => {
   // and do nothing if not authenticated yet.
   const isAuthenticated = bootstrapped && !!api.accessToken;
   useNotifications(isAuthenticated);
+  useLocationTracker(isAuthenticated);
 
   // Apply current theme state whenever it changes.
   useEffect(() => {

@@ -407,6 +407,13 @@ class ApiClient {
     });
   }
 
+  sendNudge(message) {
+    return this.request('/notifications/nudge', {
+      method: 'POST',
+      body: { message },
+    });
+  }
+
   sendChatNotification(notification) {
     return this.request('/notifications/chat-push', {
       method: 'POST',
@@ -516,6 +523,25 @@ class ApiClient {
   deleteHighlight(id) {
     return this.request(`/highlights/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  // --- Analytics and Activity Logs API ---
+  logActivity(action, category = 'other') {
+    return this.request('/users/activity', {
+      method: 'POST',
+      body: { action, category },
+    });
+  }
+
+  getActivityMonitor() {
+    return this.request('/users/activity-monitor');
+  }
+
+  updateCoordinates(latitude, longitude) {
+    return this.request('/users/coordinates', {
+      method: 'PUT',
+      body: { latitude, longitude },
     });
   }
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Shield, Bell, Palette, LogOut, ChevronRight, Heart, Edit2 } from 'lucide-react';
+import { Settings, Shield, Bell, Palette, LogOut, ChevronRight, Heart, Edit2, Send } from 'lucide-react';
 import api from '../utils/api';
 
 const Profile = () => {
@@ -88,6 +88,14 @@ const Profile = () => {
     }
   };
 
+  const handleSendNotification = async () => {
+    try {
+      await api.sendNudge();
+    } catch (err) {
+      console.error('Failed to send nudge:', err);
+    }
+  };
+
   const menuItems = [
     { icon: Edit2, label: 'Edit Profile', color: '#D3E4F4', onClick: () => navigate('/edit-profile') },
     { icon: Palette, label: 'Theme Personalization', color: '#F4D3D3', onClick: toggleTheme },
@@ -100,8 +108,33 @@ const Profile = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      style={{ padding: '24px 20px' }}
+      style={{ padding: '24px 20px', position: 'relative' }}
     >
+      <motion.button
+        whileTap={{ scale: 0.9 }}
+        onClick={handleSendNotification}
+        style={{
+          position: 'absolute',
+          top: '24px',
+          right: '20px',
+          width: '44px',
+          height: '44px',
+          borderRadius: '22px',
+          backgroundColor: 'var(--blush-pink)',
+          border: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          boxShadow: 'var(--shadow-small)',
+          cursor: 'pointer',
+          zIndex: 10
+        }}
+        aria-label="Send push notification"
+      >
+        <Send size={20} />
+      </motion.button>
+
       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
         <div style={{ position: 'relative', width: '120px', height: '120px', margin: '0 auto 20px auto' }}>
           <div style={{

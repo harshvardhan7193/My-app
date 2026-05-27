@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wifi, WifiOff, Clock, Activity, Smartphone, Monitor, Moon, Sun, RefreshCw } from 'lucide-react';
+import { 
+  Wifi, WifiOff, Clock, Activity, Smartphone, Monitor, Moon, Sun, RefreshCw, 
+  FileText, Image, Calendar, MessageSquare, Award, Play, MapPin 
+} from 'lucide-react';
 import { useAdminData } from '../data/AdminDataContext';
+import api from '../../utils/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const timeAgo = (date) => {
   const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (diff < 10) return 'Just now';
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -18,40 +23,16 @@ const formatFull = (date) =>
     day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
-// Per-session fake activity log (static but realistic)
-const ACTIVITY_LOG = [
-  { user: 'Harsh', action: 'Opened the app', icon: Smartphone, time: Date.now() - 1000 * 60 * 2 },
-  { user: 'Neha', action: 'Viewed memories', icon: Activity, time: Date.now() - 1000 * 60 * 14 },
-  { user: 'Harsh', action: 'Sent a message', icon: Activity, time: Date.now() - 1000 * 60 * 32 },
-  { user: 'Neha', action: 'Added a calendar event', icon: Activity, time: Date.now() - 1000 * 60 * 58 },
-  { user: 'Harsh', action: 'Opened the app', icon: Monitor, time: Date.now() - 1000 * 60 * 90 },
-  { user: 'Neha', action: 'Opened the app', icon: Smartphone, time: Date.now() - 1000 * 60 * 120 },
-  { user: 'Harsh', action: 'Uploaded a photo to Albums', icon: Activity, time: Date.now() - 1000 * 60 * 210 },
-  { user: 'Neha', action: 'Changed mood status', icon: Activity, time: Date.now() - 1000 * 60 * 300 },
-];
-
-// Session data per user  (last seen & session stats)
-const SESSION_DATA = {
-  Harsh: {
-    lastOnline: new Date(Date.now() - 1000 * 60 * 2),  // 2 min ago → online
-    isOnline: true,
-    device: 'Chrome · Windows',
-    deviceIcon: Monitor,
-    sessionsToday: 3,
-    avgSessionMins: 18,
-    peakHour: '9:00 PM',
-    weeklyData: [42, 20, 55, 35, 70, 90, 18],           // Sun→Sat minutes
-  },
-  Neha: {
-    lastOnline: new Date(Date.now() - 1000 * 60 * 14),  // 14 min ago
-    isOnline: false,
-    device: 'Safari · iPhone',
-    deviceIcon: Smartphone,
-    sessionsToday: 2,
-    avgSessionMins: 25,
-    peakHour: '10:30 PM',
-    weeklyData: [30, 65, 45, 80, 60, 55, 40],
-  },
+const getActionIcon = (action) => {
+  const a = action.toLowerCase();
+  if (a.includes('open') || a.includes('login')) return Smartphone;
+  if (a.includes('message') || a.includes('chat')) return MessageSquare;
+  if (a.includes('photo') || a.includes('image') || a.includes('album')) return Image;
+  if (a.includes('calendar') || a.includes('event')) return Calendar;
+  if (a.includes('memory') || a.includes('memories')) return FileText;
+  if (a.includes('streak') || a.includes('milestone')) return Award;
+  if (a.includes('slide') || a.includes('recap')) return Play;
+  return Activity;
 };
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -68,6 +49,7 @@ const WeekBar = ({ values, color }) => {
             animate={{ height: `${(v / max) * 100}%` }}
             transition={{ delay: i * 0.05, duration: 0.5, ease: 'easeOut' }}
             style={{ width: '100%', borderRadius: '4px', background: color, minHeight: '4px' }}
+            title={`${v} minutes`}
           />
           <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>{DAYS[i]}</span>
         </div>
@@ -79,14 +61,56 @@ const WeekBar = ({ values, color }) => {
 const ActivityMonitor = () => {
   const { users } = useAdminData();
   const [tick, setTick] = useState(0);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Refresh the "X ago" text every 30 seconds
+  // Fetch analytics on mount and whenever tick is updated
+  useEffect(() => {
+    let cancelled = false;
+    const fetchAnalytics = async () => {
+      try {
+        const res = await api.getActivityMonitor();
+        if (!cancelled) {
+          setData(res);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load live activity monitor metrics:', err);
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchAnalytics();
+    return () => { cancelled = true; };
+  }, [tick]);
+
+  // Auto-refresh stats every 30 seconds
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 30_000);
     return () => clearInterval(id);
   }, []);
 
+  const handleManualRefresh = () => {
+    setTick(t => t + 1);
+  };
+
   const userColors = ['var(--blush-pink)', '#9c27b0'];
+
+  if (loading && !data) {
+    return (
+      <div style={{ display: 'flex', height: '60vh', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sub)' }}>
+        <RefreshCw size={24} className="animate-spin" style={{ marginRight: '12px' }} />
+        <span>Loading live activity metrics...</span>
+      </div>
+    );
+  }
+
+  const sessions = data?.sessions || {};
+  const recentActivities = data?.recentActivities || [];
+  const summary = data?.summary || {
+    onlineRightNow: '0 / 0',
+    actionsToday: '0',
+    longestStreak: '0 days'
+  };
 
   return (
     <div>
@@ -99,8 +123,9 @@ const ActivityMonitor = () => {
         <motion.div
           animate={{ rotate: tick * 180 }}
           transition={{ duration: 0.5 }}
-          style={{ color: 'var(--text-muted)', cursor: 'default' }}
-          title="Auto-refreshes every 30s"
+          style={{ color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}
+          onClick={handleManualRefresh}
+          title="Auto-refreshes every 30s. Click to refresh now."
         >
           <RefreshCw size={18} />
         </motion.div>
@@ -109,7 +134,21 @@ const ActivityMonitor = () => {
       {/* User Status Cards */}
       <div className="admin-grid grid-2" style={{ marginBottom: '28px' }}>
         {users.map((user, i) => {
-          const session = SESSION_DATA[user.name.split(' ')[0]] || SESSION_DATA.Harsh;
+          const userNameKey = user.name.split(' ')[0];
+          const session = sessions[userNameKey] || {
+            lastOnline: user.lastSeen || new Date(),
+            isOnline: user.isOnline || false,
+            device: 'Chrome · Windows',
+            sessionsToday: 0,
+            avgSessionMins: 0,
+            peakHour: 'N/A',
+            weeklyData: [0, 0, 0, 0, 0, 0, 0]
+          };
+
+          const isMobile = session.device.toLowerCase().includes('iphone') || 
+                           session.device.toLowerCase().includes('ios') || 
+                           session.device.toLowerCase().includes('android');
+          const DeviceIcon = isMobile ? Smartphone : Monitor;
           const color = userColors[i];
 
           return (
@@ -129,7 +168,7 @@ const ActivityMonitor = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ position: 'relative' }}>
                     <div style={{ width: '60px', height: '60px', borderRadius: '18px', overflow: 'hidden', border: `2px solid ${color}40` }}>
-                      <img src={user.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={user.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={user.name} />
                     </div>
                     {/* Online dot */}
                     <div style={{
@@ -191,12 +230,45 @@ const ActivityMonitor = () => {
 
               {/* Device */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '20px' }}>
-                <session.deviceIcon size={18} color="var(--text-muted)" />
+                <DeviceIcon size={18} color="var(--text-muted)" />
                 <div>
                   <p style={{ fontSize: '13px', fontWeight: 600 }}>{session.device}</p>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Last known device</p>
                 </div>
               </div>
+
+              {/* Location Coordinates */}
+              {session.coordinates && session.coordinates.latitude !== undefined && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', border: '1px solid var(--border-light)', borderRadius: '12px', marginBottom: '20px' }}>
+                  <MapPin size={18} color="var(--blush-pink)" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: 600 }}>
+                      {session.coordinates.latitude.toFixed(6)}, {session.coordinates.longitude.toFixed(6)}
+                    </p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      Updated {timeAgo(session.coordinates.updatedAt)}
+                    </p>
+                  </div>
+                  <a 
+                    href={`https://www.google.com/maps?q=${session.coordinates.latitude},${session.coordinates.longitude}`}
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{
+                      fontSize: '11px', 
+                      color: color, 
+                      fontWeight: 700, 
+                      textDecoration: 'none',
+                      background: 'var(--chat-bg)',
+                      padding: '4px 10px',
+                      borderRadius: '100px',
+                      border: `1px solid ${color}40`,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    View Map
+                  </a>
+                </div>
+              )}
 
               {/* Weekly Activity Bar */}
               <div>
@@ -216,50 +288,62 @@ const ActivityMonitor = () => {
           <Activity size={18} color="var(--blush-pink)" />
           <h3 style={{ fontSize: '18px' }}>Recent Activity Log</h3>
         </div>
-        <div style={{ padding: '8px 0' }}>
-          {ACTIVITY_LOG.map((entry, idx) => {
-            const isHarsh = entry.user === 'Harsh';
-            const color = isHarsh ? 'var(--blush-pink)' : '#9c27b0';
-            return (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.04 }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '16px',
-                  padding: '14px 24px',
-                  borderBottom: idx < ACTIVITY_LOG.length - 1 ? '1px solid var(--border-light)' : 'none',
-                }}
-              >
-                {/* User avatar circle */}
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color }}>{entry.user[0]}</span>
-                </div>
+        <div style={{ padding: '8px 0', maxHeight: '420px', overflowY: 'auto' }}>
+          {recentActivities.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              No recent activity recorded yet.
+            </div>
+          ) : (
+            recentActivities.map((entry, idx) => {
+              const isHarsh = entry.user === 'Harsh';
+              const color = isHarsh ? 'var(--blush-pink)' : '#9c27b0';
+              const ActionIcon = getActionIcon(entry.action);
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '16px',
+                    padding: '14px 24px',
+                    borderBottom: idx < recentActivities.length - 1 ? '1px solid var(--border-light)' : 'none',
+                  }}
+                >
+                  {/* Action-related icon circle */}
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <ActionIcon size={16} color={color} />
+                  </div>
 
-                {/* Action */}
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 700, color, fontSize: '14px' }}>{entry.user}</span>
-                  <span style={{ fontSize: '14px', color: 'var(--text-sub)' }}> {entry.action}</span>
-                </div>
+                  {/* Action text */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 700, color, fontSize: '14px' }}>{entry.user}</span>
+                    <span style={{ fontSize: '14px', color: 'var(--text-sub)' }}> {entry.action}</span>
+                    {entry.device && (
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px', background: 'var(--chat-bg)', padding: '2px 8px', borderRadius: '4px', display: 'inline-block' }}>
+                        {entry.device.split(' · ')[0]}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Time */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '13px', whiteSpace: 'nowrap' }}>
-                  <Clock size={13} />
-                  {timeAgo(entry.time)}
-                </div>
-              </motion.div>
-            );
-          })}
+                  {/* Time */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                    <Clock size={13} />
+                    {timeAgo(entry.time)}
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
         </div>
       </div>
 
       {/* Summary Footer */}
       <div className="admin-grid grid-3" style={{ marginTop: '24px' }}>
         {[
-          { label: 'Online Right Now', value: '1 / 2', icon: Wifi, color: '#4CAF50' },
-          { label: 'Actions Today', value: ACTIVITY_LOG.filter(e => Date.now() - e.time < 86400_000).length.toString(), icon: Activity, color: 'var(--blush-pink)' },
-          { label: 'Longest Streak', value: '14 days', icon: Moon, color: '#D4AF37' },
+          { label: 'Online Right Now', value: summary.onlineRightNow, icon: Wifi, color: '#4CAF50' },
+          { label: 'Actions Today', value: summary.actionsToday, icon: Activity, color: 'var(--blush-pink)' },
+          { label: 'Longest Streak', value: summary.longestStreak, icon: Moon, color: '#D4AF37' },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1 }}
             className="admin-card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
