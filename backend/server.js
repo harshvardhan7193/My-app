@@ -81,41 +81,63 @@ app.use('/api/highlights', highlightRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-// ─── Start ────────────────────────────────────────
-const start = async () => {
-  await connectDB();
-  initFirebase();
-  startScheduler();
+// ─── Start / Export ────────────────────────────────────────
 
-  const server = app.listen(PORT, () => {
-    console.log(`\n🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-    console.log(`   Health: http://localhost:${PORT}/api/health\n`);
-  });
-
-  // Graceful shutdown — stop accepting new connections, finish in-flight requests, then close Mongo
-  const shutdown = async (signal) => {
-    console.log(`\n${signal} received — shutting down gracefully...`);
-    server.close(async (err) => {
-      if (err) console.error('HTTP server close error:', err);
-      try {
-        await mongoose.disconnect();
-        console.log('✅ Mongo disconnected');
-      } catch (e) {
-        console.error('Mongo disconnect error:', e);
-      }
-      stopScheduler();
-      process.exit(err ? 1 : 0);
-    });
-
-    // Force-exit safety net if something hangs
-    setTimeout(() => {
-      console.error('Shutdown timeout — forcing exit');
-      process.exit(1);
-    }, 10_000).unref();
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+// Global initializer for Vercel Serverless environment
+let isInitialized = false;
+const initializeServerless = async () => {
+  if (!isInitialized) {
+    await connectDB();
+    initFirebase();
+    isInitialized = true;
+  }
 };
 
-start();
+// If running on Vercel, attach middleware to ensure connection before handling routes
+if (process.env.VERCEL) {
+  // It's important to have this at the top of the route stack, but since routes are already defined above,
+  // we actually should have added this earlier. However, since mongoose buffers requests, 
+  // it might be simpler to just call initializeServerless() synchronously at the top level and let it resolve.
+  connectDB();
+  initFirebase();
+} else {
+  // Local development / traditional hosting
+  const start = async () => {
+    await connectDB();
+    initFirebase();
+    startScheduler();
+
+    const server = app.listen(PORT, () => {
+      console.log(`\n🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+      console.log(`   Health: http://localhost:${PORT}/api/health\n`);
+    });
+
+    // Graceful shutdown
+    const shutdown = async (signal) => {
+      console.log(`\n${signal} received — shutting down gracefully...`);
+      server.close(async (err) => {
+        if (err) console.error('HTTP server close error:', err);
+        try {
+          await mongoose.disconnect();
+          console.log('✅ Mongo disconnected');
+        } catch (e) {
+          console.error('Mongo disconnect error:', e);
+        }
+        stopScheduler();
+        process.exit(err ? 1 : 0);
+      });
+
+      setTimeout(() => {
+        console.error('Shutdown timeout — forcing exit');
+        process.exit(1);
+      }, 10_000).unref();
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+  };
+
+  start();
+}
+
+export default app;
