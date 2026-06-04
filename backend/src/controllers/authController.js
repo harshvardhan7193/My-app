@@ -30,17 +30,15 @@ export const login = asyncHandler(async (req, res) => {
     throw new Error('Invalid credentials');
   }
 
-  // Generate tokens
-  const accessToken = generateAccessToken(user._id);
+  // Generate tokens — embed role + coupleId in the access token so route
+  // protection can skip a per-request DB lookup.
+  const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user._id);
 
-  // Set refresh token as httpOnly cookie
   setRefreshCookie(res, refreshToken);
 
-  // Update last seen
-  user.isOnline = true;
-  user.lastSeen = new Date();
-  await user.save({ validateBeforeSave: false });
+  // Best-effort presence update — don't block the login response on it.
+  User.updateOne({ _id: user._id }, { isOnline: true, lastSeen: new Date() }).catch(() => {});
 
   res.json({
     accessToken,
@@ -85,7 +83,7 @@ export const refresh = asyncHandler(async (req, res) => {
   const newRefreshToken = generateRefreshToken(user._id);
   setRefreshCookie(res, newRefreshToken);
 
-  const accessToken = generateAccessToken(user._id);
+  const accessToken = generateAccessToken(user);
   res.json({ accessToken });
 });
 

@@ -1,13 +1,29 @@
 import jwt from 'jsonwebtoken';
 
-export const generateAccessToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, {
+// Accepts either a userId string (legacy) or a user-like object containing
+// _id, role, and coupleId. The richer payload lets protect() avoid a DB
+// lookup on every request.
+const buildAccessPayload = (userOrId) => {
+  if (userOrId && typeof userOrId === 'object') {
+    return {
+      id: String(userOrId._id || userOrId.id),
+      role: userOrId.role,
+      coupleId: userOrId.coupleId ? String(userOrId.coupleId) : undefined,
+      name: userOrId.name,
+    };
+  }
+  return { id: String(userOrId) };
+};
+
+export const generateAccessToken = (userOrId) => {
+  return jwt.sign(buildAccessPayload(userOrId), process.env.JWT_ACCESS_SECRET, {
     expiresIn: process.env.JWT_ACCESS_EXPIRES || '15m',
   });
 };
 
-export const generateRefreshToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, {
+export const generateRefreshToken = (userOrId) => {
+  const id = userOrId && typeof userOrId === 'object' ? String(userOrId._id || userOrId.id) : String(userOrId);
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: process.env.JWT_REFRESH_EXPIRES || '7d',
   });
 };

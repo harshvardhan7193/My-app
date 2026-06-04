@@ -7,7 +7,7 @@ const parseUserAgent = (ua) => {
   if (!ua) return 'Unknown Device';
   let browser = 'Unknown Browser';
   let os = 'Unknown OS';
-  
+
   if (ua.includes('Firefox')) browser = 'Firefox';
   else if (ua.includes('Chrome')) browser = 'Chrome';
   else if (ua.includes('Safari')) browser = 'Safari';
@@ -22,106 +22,109 @@ const parseUserAgent = (ua) => {
   return `${browser} · ${os}`;
 };
 
+// Per-process throttle: avoid writing presence rows on every API call.
+// On Vercel each warm container has its own Map, which is fine — the goal is
+// to prevent thrashing when the same user hits the API many times per second.
+const lastSeenByUser = new Map();
+const PRESENCE_THROTTLE_MS = 30_000; // write at most every 30s
+
 export const trackActivity = async (req, res, next) => {
-  // Only track authenticated requests
   if (!req.user || !req.coupleId) return next();
 
-  const now = new Date();
-  const userId = req.user._id;
-  const coupleId = req.coupleId;
-  const device = parseUserAgent(req.headers['user-agent']);
-
-  // Throttle database writes: only write if lastSeen is >15 seconds ago
-  const shouldUpdate = !req.user.lastSeen || (now - new Date(req.user.lastSeen)) > 15_000;
+  const now = Date.now();
+  const userId = String(req.user._id);
+  const lastTouched = lastSeenByUser.get(userId) || 0;
+  const shouldUpdate = now - lastTouched > PRESENCE_THROTTLE_MS;
 
   if (shouldUpdate) {
-    // Perform presence/session operations asynchronously to not block client thread
-    (async () => {
-      try {
-        // Update user state
-        await User.findByIdAndUpdate(userId, {
-          isOnline: true,
-          lastSeen: now
-        });
+    lastSeenByUser.set(userId, now);
+    const coupleId = req.coupleId;
+    const device = parseUserAgent(req.headers['user-agent']);
+    const nowDate = new Date(now);
 
-        // Check for active session in the last 30 minutes
-        const thirtyMinsAgo = new Date(now.getTime() - 30 * 60 * 1000);
-        let activeSession = await Session.findOne({
-          user: userId,
-          endTime: { $gte: thirtyMinsAgo }
-        }).sort({ endTime: -1 });
-
-        if (activeSession) {
-          // Update active session duration and end time
-          activeSession.endTime = now;
-          activeSession.durationMins = Math.max(
-            1,
-            Math.round((now.getTime() - activeSession.startTime.getTime()) / 60000)
-          );
-          await activeSession.save();
-        } else {
-          // Create new session
-          await Session.create({
+    // Run presence work AFTER the response is sent so it never adds latency.
+    // We cannot rely on Vercel keeping the function alive, so we awaitable-fan-out
+    // these writes and don't block the response. Worst case on Vercel: the writes
+    // are best-effort. Better: deploy this app to a long-running host.
+    res.on('finish', () => {
+      Promise.allSettled([
+        User.updateOne({ _id: userId }, { isOnline: true, lastSeen: nowDate }),
+        (async () => {
+          const thirtyMinsAgo = new Date(now - 30 * 60 * 1000);
+          const activeSession = await Session.findOne({
             user: userId,
-            coupleId,
-            device,
-            startTime: now,
-            endTime: now,
-            durationMins: 1
-          });
+            endTime: { $gte: thirtyMinsAgo },
+          })
+            .sort({ endTime: -1 })
+            .select('_id startTime')
+            .lean();
 
-          // Log the automated "Opened the app" activity
-          await ActivityLog.create({
-            user: userId,
-            coupleId,
-            action: 'Opened the app',
-            category: 'auth',
-            device
-          });
-        }
-      } catch (err) {
-        console.error('Error tracking activity session:', err);
-      }
-    })();
+          if (activeSession) {
+            const durationMins = Math.max(
+              1,
+              Math.round((now - new Date(activeSession.startTime).getTime()) / 60000)
+            );
+            await Session.updateOne(
+              { _id: activeSession._id },
+              { endTime: nowDate, durationMins }
+            );
+          } else {
+            await Session.create({
+              user: userId,
+              coupleId,
+              device,
+              startTime: nowDate,
+              endTime: nowDate,
+              durationMins: 1,
+            });
+            await ActivityLog.create({
+              user: userId,
+              coupleId,
+              action: 'Opened the app',
+              category: 'auth',
+              device,
+            });
+          }
+        })(),
+      ]).catch((err) => console.error('trackActivity (post-response) error:', err));
+    });
   }
 
-  // Hook into response completion to automatically track successful operations
+  // Hook into response completion to log specific successful operations.
   res.on('finish', () => {
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      let action = null;
-      let category = 'other';
+    if (res.statusCode < 200 || res.statusCode >= 300) return;
 
-      const path = req.baseUrl + req.path;
-      const method = req.method;
+    let action = null;
+    let category = 'other';
+    const path = req.baseUrl + req.path;
+    const method = req.method;
 
-      if (method === 'POST' && path === '/api/memories') {
-        action = 'Created a memory';
-        category = 'memory';
-      } else if (method === 'POST' && path === '/api/events') {
-        action = 'Added a calendar event';
-        category = 'event';
-      } else if (method === 'POST' && path.match(/\/api\/albums\/[a-f\d]{24}\/photos/i)) {
-        action = 'Uploaded a photo to Albums';
-        category = 'album';
-      } else if (method === 'POST' && path === '/api/albums') {
-        action = 'Created an album';
-        category = 'album';
-      } else if (method === 'PUT' && path === '/api/users/me') {
-        if (req.body.mood) {
-          action = 'Changed mood status';
-          category = 'settings';
-        }
-      }
+    if (method === 'POST' && path === '/api/memories') {
+      action = 'Created a memory';
+      category = 'memory';
+    } else if (method === 'POST' && path === '/api/events') {
+      action = 'Added a calendar event';
+      category = 'event';
+    } else if (method === 'POST' && path.match(/\/api\/albums\/[a-f\d]{24}\/photos/i)) {
+      action = 'Uploaded a photo to Albums';
+      category = 'album';
+    } else if (method === 'POST' && path === '/api/albums') {
+      action = 'Created an album';
+      category = 'album';
+    } else if (method === 'PUT' && path === '/api/users/me' && req.body?.mood) {
+      action = 'Changed mood status';
+      category = 'settings';
+    }
 
-      if (action) {
-        ActivityLog.create({
-          user: userId,
-          coupleId,
-          action,
-          category,
-          device
-        }).catch(err => console.error('Auto Activity Log Error:', err));
-      }
+    if (action) {
+      const device = parseUserAgent(req.headers['user-agent']);
+      ActivityLog.create({
+        user: req.user._id,
+        coupleId: req.coupleId,
+        action,
+        category,
+        device,
+      }).catch((err) => console.error('Auto Activity Log Error:', err));
     }
   });
 

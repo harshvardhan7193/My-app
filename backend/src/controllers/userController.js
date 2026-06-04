@@ -6,7 +6,12 @@ import Session from '../models/Session.js';
 // @desc    Get current user profile
 // @route   GET /api/users/me
 export const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
+  // .lean() skips Mongoose hydration overhead. We never mutate this doc here.
+  const user = await User.findById(req.user._id).select('-password').lean();
+  if (!user) {
+    res.status(401);
+    throw new Error('User not found');
+  }
   res.json(user);
 });
 

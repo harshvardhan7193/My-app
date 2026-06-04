@@ -12,11 +12,18 @@ const connectDB = async () => {
   }
 
   if (!cached.promise) {
+    const isProd = process.env.NODE_ENV === 'production';
     cached.promise = mongoose
       .connect(process.env.MONGO_URI, {
-        // Keep connections lean for serverless; tweak if you upsize.
+        // Serverless-friendly defaults.
         maxPoolSize: 5,
         serverSelectionTimeoutMS: 10_000,
+        // Fail fast instead of silently queuing while disconnected.
+        bufferCommands: false,
+        // CRITICAL: never auto-build indexes in production. They get built once
+        // by a one-shot script (npm run sync-indexes) and re-running on every
+        // cold start is the #1 source of latency on serverless platforms.
+        autoIndex: !isProd,
       })
       .then((conn) => {
         console.log(`✅ MongoDB connected: ${conn.connection.host}`);
