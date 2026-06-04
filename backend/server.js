@@ -32,19 +32,35 @@ const PORT = process.env.PORT || 5000;
 
 // ─── Security ─────────────────────────────────────
 app.use(helmet());
-const defaultClientOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
-const allowedOrigins = [
-  defaultClientOrigin,
-  defaultClientOrigin.replace('localhost', '127.0.0.1'),
-];
+
+// Build allowed origins from CLIENT_URL plus optional CLIENT_URLS (comma-separated).
+// Useful for Netlify previews / multiple deployment URLs.
+const buildAllowedOrigins = () => {
+  const origins = new Set();
+  const primary = process.env.CLIENT_URL || 'http://localhost:5173';
+  origins.add(primary);
+  origins.add(primary.replace('localhost', '127.0.0.1'));
+  (process.env.CLIENT_URLS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .forEach((o) => origins.add(o));
+  return origins;
+};
+const allowedOrigins = buildAllowedOrigins();
+
 app.use(cors({
   origin: (origin, cb) => {
     // Allow non-browser tools (no Origin header) and configured frontend origins.
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.has(origin)) return cb(null, true);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
 }));
+
+// Vercel terminates TLS in front of the function; trust proxy so secure cookies
+// and req.protocol/req.ip work correctly behind it.
+app.set('trust proxy', 1);
 
 // ─── Body Parsing ─────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
@@ -83,25 +99,10 @@ app.use(errorHandler);
 
 // ─── Start / Export ────────────────────────────────────────
 
-// Global initializer for Vercel Serverless environment
-let isInitialized = false;
-const initializeServerless = async () => {
-  if (!isInitialized) {
-    await connectDB();
-    initFirebase();
-    isInitialized = true;
-  }
-};
-
-// If running on Vercel, attach middleware to ensure connection before handling routes
-if (process.env.VERCEL) {
-  // It's important to have this at the top of the route stack, but since routes are already defined above,
-  // we actually should have added this earlier. However, since mongoose buffers requests, 
-  // it might be simpler to just call initializeServerless() synchronously at the top level and let it resolve.
-  connectDB();
-  initFirebase();
-} else {
-  // Local development / traditional hosting
+// On Vercel, the serverless entrypoint at api/index.js bootstraps the app and
+// imports `app` from this file. We must NOT call app.listen() in that case.
+// Locally, we boot the DB, scheduler, and the HTTP listener.
+if (!process.env.VERCEL) {
   const start = async () => {
     await connectDB();
     initFirebase();
@@ -112,7 +113,6 @@ if (process.env.VERCEL) {
       console.log(`   Health: http://localhost:${PORT}/api/health\n`);
     });
 
-    // Graceful shutdown
     const shutdown = async (signal) => {
       console.log(`\n${signal} received — shutting down gracefully...`);
       server.close(async (err) => {
