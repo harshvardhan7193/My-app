@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 const BottomNav = () => {
   const navItems = [
-    { path: '/dashboard', icon: Home, label: 'Home' },
+    { path: '/', icon: Home, label: 'Home' },
     { path: '/gallery', icon: Image, label: 'Memories' },
     { path: '/calendar', icon: CalendarIcon, label: 'Planner' },
     { path: '/chat', icon: MessageSquare, label: 'Chat' },
@@ -33,6 +33,7 @@ const BottomNav = () => {
         <NavLink
           key={item.path}
           to={item.path}
+          end={item.path === '/'}
           style={({ isActive }) => ({
             display: 'flex',
             flexDirection: 'column',

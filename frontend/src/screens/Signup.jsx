@@ -47,7 +47,7 @@ const Signup = () => {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/')}
           className="btn-primary"
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}
         >

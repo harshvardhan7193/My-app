@@ -372,7 +372,7 @@ const Chat = () => {
         top: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <motion.div whileTap={{ scale: 0.9 }} onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', padding: '4px' }}>
+          <motion.div whileTap={{ scale: 0.9 }} onClick={() => navigate('/')} style={{ cursor: 'pointer', padding: '4px' }}>
             <ChevronLeft size={24} color="var(--text-main)" />
           </motion.div>
           <div

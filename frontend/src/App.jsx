@@ -5,7 +5,6 @@ import api from './utils/api';
 import { NotificationToastProvider } from './components/NotificationToastProvider';
 import { useNotifications } from './hooks/useNotifications';
 import { useLocationTracker } from './hooks/useLocationTracker';
-import Onboarding from './screens/Onboarding';
 import Dashboard from './screens/Dashboard';
 import Gallery from './screens/Gallery';
 import Chat from './screens/Chat';
@@ -142,10 +141,10 @@ const App = () => {
           <Routes>
             {/* Consumer Routes (Fixed Width Mobile Container) */}
             <Route element={<MobileContainer />}>
-              <Route path="/" element={<Onboarding />} />
+              <Route path="/" element={<WithNav><Dashboard /></WithNav>} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Navigate to="/login" replace />} />
-              <Route path="/dashboard" element={<WithNav><Dashboard /></WithNav>} />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/gallery" element={<WithNav><Gallery /></WithNav>} />
               <Route path="/albums" element={<WithNav><Albums /></WithNav>} />
               <Route path="/album/:albumId" element={<AlbumDetail />} />
@@ -222,7 +221,7 @@ const RequireAdmin = ({ children }) => {
     );
   }
   if (!state.authed) return <Navigate to="/admin/login" replace />;
-  if (!state.allowed) return <Navigate to="/dashboard" replace />;
+  if (!state.allowed) return <Navigate to="/" replace />;
   return children;
 };
 

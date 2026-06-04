@@ -40,7 +40,7 @@ const Login = () => {
       };
       localStorage.setItem('currentUser', JSON.stringify(legacyUser));
 
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError(err.message || 'Invalid User ID or Password.');
     } finally {

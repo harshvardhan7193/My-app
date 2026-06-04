@@ -95,7 +95,7 @@ const SpecialMoments = () => {
         transition={{ delay: 0.9 }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => navigate('/dashboard')}
+        onClick={() => navigate('/')}
         style={{
           padding: '16px 48px',
           borderRadius: '100px',

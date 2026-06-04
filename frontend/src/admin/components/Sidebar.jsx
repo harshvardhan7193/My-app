@@ -53,7 +53,7 @@ const Sidebar = ({ isCollapsed }) => {
       </nav>
 
       <div style={{ padding: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-        <NavLink to="/dashboard" className="nav-item">
+        <NavLink to="/" className="nav-item">
            <Sparkles size={20} />
            {!isCollapsed && <span>View App</span>}
         </NavLink>
