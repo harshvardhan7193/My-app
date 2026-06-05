@@ -1,4 +1,22 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Resolve the API base URL.
+// - In local dev (running on localhost / 127.0.0.1), use whatever VITE_API_URL
+//   points at (typically the local backend).
+// - In production (deployed Vercel frontend), ALWAYS use the same-origin
+//   `/api` path. Vercel rewrites `/api/*` to the actual backend deployment
+//   (see frontend/vercel.json), which makes the refresh-token cookie a
+//   first-party cookie for the SPA's host. Third-party cookies don't
+//   reliably persist across launches in Android WebViews, which is what
+//   was breaking auth on the second launch of the Flutter wrapper.
+const _resolveApiBase = () => {
+  const fromEnv = import.meta.env.VITE_API_URL;
+  if (typeof window === 'undefined') return fromEnv || '/api';
+  const host = window.location.hostname;
+  const isLocalDev = host === 'localhost' || host === '127.0.0.1';
+  if (isLocalDev) return fromEnv || 'http://localhost:5000/api';
+  // Production: ignore any cross-origin URL in VITE_API_URL — go same-origin.
+  return '/api';
+};
+const API_BASE_URL = _resolveApiBase();
 
 /**
  * Enhanced fetch client with support for custom headers, auto JWT injection,
