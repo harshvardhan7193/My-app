@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Component } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import api from './utils/api';
@@ -39,6 +39,67 @@ import ActivityMonitor from './admin/screens/ActivityMonitor';
 import NotificationsManager from './admin/screens/NotificationsManager';
 import AdminLogin from './admin/screens/AdminLogin';
 import './index.css';
+
+// Catches any uncaught render error anywhere below it and shows a fallback
+// instead of unmounting the whole tree (which would leave the WebView showing
+// a blank #root — the "blank white screen on second launch" symptom).
+class AppErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    // Surfaced to adb logcat via the WebView's onConsoleMessage bridge so we
+    // can diagnose the actual crash from the native shell.
+    console.error('[aura-error-boundary]', error?.message || String(error),
+      info?.componentStack || '');
+  }
+  reset = () => {
+    this.setState({ hasError: false, error: null });
+    try { window.location.replace('/'); } catch { /* noop */ }
+  };
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    const msg = this.state.error?.message || 'Something went wrong.';
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        textAlign: 'center',
+        backgroundColor: 'var(--warm-white, #FFFAF8)',
+        color: 'var(--text-primary, #332D2D)',
+        fontFamily: 'var(--font-body, Inter, sans-serif)'
+      }}>
+        <h2 style={{ fontSize: '20px', marginBottom: '12px' }}>Something went wrong</h2>
+        <p style={{ fontSize: '14px', opacity: 0.7, marginBottom: '20px', maxWidth: 320 }}>
+          {msg}
+        </p>
+        <button
+          onClick={this.reset}
+          style={{
+            background: 'linear-gradient(135deg, #F4D3D3, #FFB7C5)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '100px',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
+}
 
 const resolveShouldUseDark = (theme = 'light') => {
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -147,13 +208,21 @@ const App = () => {
 
   if (!bootstrapped) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sub)' }}>
+      <div style={{
+        display: 'flex',
+        height: '100vh',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-sub, #7D7474)',
+        backgroundColor: 'var(--warm-white, #FFFAF8)'
+      }}>
         Loading...
       </div>
     );
   }
 
   return (
+    <AppErrorBoundary>
     <NotificationToastProvider>
       <Router>
         <AnimatePresence mode="wait">
@@ -213,6 +282,7 @@ const App = () => {
         </AnimatePresence>
       </Router>
     </NotificationToastProvider>
+    </AppErrorBoundary>
   );
 };
 

@@ -297,7 +297,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
                     isOpen: true, 
                     stories: partnerStories, 
                     startIndex: 0, 
-                    title: `${partnerUser.name.split(' ')[0]}'s Story` 
+                    title: `${(partnerUser.name || 'Partner').split(' ')[0]}'s Story` 
                   });
                 }
               }}
@@ -332,7 +332,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
               </div>
             </div>
             <span style={{ fontSize: '12px', marginTop: '6px', fontWeight: 500, opacity: 0.9 }}>
-              {partnerUser.name.split(' ')[0]}
+              {(partnerUser.name || 'Partner').split(' ')[0]}
             </span>
           </div>
         )}
