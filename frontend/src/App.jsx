@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import api from './utils/api';
 import { NotificationToastProvider } from './components/NotificationToastProvider';
@@ -88,6 +88,13 @@ const App = () => {
       if (!cancelled) setPreferredTheme(me?.preferredTheme || 'light');
     };
 
+    const clearSession = () => {
+      api.setAccessToken(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('currentUser');
+      if (!cancelled) setPreferredTheme('light');
+    };
+
     (async () => {
       try {
         if (api.accessToken) {
@@ -97,9 +104,7 @@ const App = () => {
 
         const refreshed = await api.refreshToken();
         if (!refreshed) {
-          localStorage.removeItem('user');
-          localStorage.removeItem('currentUser');
-          if (!cancelled) setPreferredTheme('light');
+          clearSession();
           return;
         }
 
@@ -115,9 +120,7 @@ const App = () => {
         } catch {
           // ignore
         }
-        localStorage.removeItem('user');
-        localStorage.removeItem('currentUser');
-        if (!cancelled) setPreferredTheme('light');
+        clearSession();
       } finally {
         if (!cancelled) setBootstrapped(true);
       }
@@ -141,28 +144,37 @@ const App = () => {
           <Routes>
             {/* Consumer Routes (Fixed Width Mobile Container) */}
             <Route element={<MobileContainer />}>
-              <Route path="/" element={<WithNav><Dashboard /></WithNav>} />
-              <Route path="/login" element={<Login />} />
+              {/* Public routes — accessible without auth. If a session already
+                  exists, skip the login screen and go straight to the app. */}
+              <Route
+                path="/login"
+                element={api.accessToken ? <Navigate to="/" replace /> : <Login />}
+              />
               <Route path="/signup" element={<Navigate to="/login" replace />} />
-              <Route path="/dashboard" element={<Navigate to="/" replace />} />
-              <Route path="/gallery" element={<WithNav><Gallery /></WithNav>} />
-              <Route path="/albums" element={<WithNav><Albums /></WithNav>} />
-              <Route path="/album/:albumId" element={<AlbumDetail />} />
-              <Route path="/album/:albumId/photo/:id" element={<PhotoView />} />
-              <Route path="/gallery/photo/:id" element={<PhotoView />} />
-              <Route path="/chat-media/photo/:id" element={<PhotoView />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/calendar" element={<WithNav><Calendar /></WithNav>} />
-              <Route path="/timeline" element={<WithNav><Timeline /></WithNav>} />
-              <Route path="/profile" element={<WithNav><Profile /></WithNav>} />
-              <Route path="/edit-profile" element={<EditProfile />} />
-              <Route path="/memory/:id" element={<MemoryDetail />} />
-              <Route path="/celebration" element={<SpecialMoments />} />
-              <Route path="/recap" element={<MemoryRecap />} />
-              <Route path="/partner-profile" element={<PartnerProfile />} />
-              <Route path="/chat-media" element={<ChatMedia />} />
-              <Route path="/notification-settings" element={<NotificationSettings />} />
-              <Route path="/notifications" element={<NotificationCenter />} />
+
+              {/* Authenticated routes — RequireAuth bounces to /login when no session */}
+              <Route element={<RequireAuth />}>
+                <Route path="/" element={<WithNav><Dashboard /></WithNav>} />
+                <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="/gallery" element={<WithNav><Gallery /></WithNav>} />
+                <Route path="/albums" element={<WithNav><Albums /></WithNav>} />
+                <Route path="/album/:albumId" element={<AlbumDetail />} />
+                <Route path="/album/:albumId/photo/:id" element={<PhotoView />} />
+                <Route path="/gallery/photo/:id" element={<PhotoView />} />
+                <Route path="/chat-media/photo/:id" element={<PhotoView />} />
+                <Route path="/chat" element={<Chat />} />
+                <Route path="/calendar" element={<WithNav><Calendar /></WithNav>} />
+                <Route path="/timeline" element={<WithNav><Timeline /></WithNav>} />
+                <Route path="/profile" element={<WithNav><Profile /></WithNav>} />
+                <Route path="/edit-profile" element={<EditProfile />} />
+                <Route path="/memory/:id" element={<MemoryDetail />} />
+                <Route path="/celebration" element={<SpecialMoments />} />
+                <Route path="/recap" element={<MemoryRecap />} />
+                <Route path="/partner-profile" element={<PartnerProfile />} />
+                <Route path="/chat-media" element={<ChatMedia />} />
+                <Route path="/notification-settings" element={<NotificationSettings />} />
+                <Route path="/notifications" element={<NotificationCenter />} />
+              </Route>
             </Route>
 
             {/* Admin Routes (Full Width Desktop) */}
@@ -193,6 +205,18 @@ const MobileContainer = () => (
     <Outlet />
   </div>
 );
+
+// Guards consumer routes. Without an access token we have no way to talk to the
+// API, so bounce to /login instead of rendering screens that will silently 401
+// and look like a blank white page (especially in the Flutter WebView wrapper
+// where the very first launch starts with empty cookies + empty localStorage).
+const RequireAuth = () => {
+  const location = useLocation();
+  if (!api.accessToken) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  return <Outlet />;
+};
 
 // Guards /admin/* — only users with role === 'admin' may pass.
 // Verifies against the backend so a stale localStorage value can't be spoofed.
