@@ -358,62 +358,94 @@ class ApiClient {
   }
 
   // --- Upload API ---
-  async uploadFile(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    return this.request('/upload', {
-      method: 'POST',
-      body: formData,
-    });
+  //
+  // Large uploads no longer stream through our Vercel backend. Instead the
+  // client:
+  //   1) asks the backend for a short-lived signed upload signature (~200B),
+  //   2) POSTs the file directly to api.cloudinary.com.
+  //
+  // This matters because routing the bytes through Vercel made the rest of
+  // the app feel frozen during big uploads — every API call shares one
+  // HTTP/2 connection to our origin, and the upload's flow-control window
+  // starved the small JSON requests behind it. Different origin (Cloudinary)
+  // → its own connection → other APIs stay responsive.
+  uploadFile(file) {
+    return this.uploadFileWithProgress(file, null);
   }
 
   uploadFileWithProgress(file, onProgress) {
     return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      const url = `${API_BASE_URL}/upload`;
-      const formData = new FormData();
-      formData.append('file', file);
-
-      xhr.open('POST', url, true);
-      
-      // Inject Authorization header if token is present
-      if (this.accessToken) {
-        xhr.setRequestHeader('Authorization', `Bearer ${this.accessToken}`);
-      }
-
-      // Track upload progress events
-      if (xhr.upload && onProgress) {
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percentage = Math.round((event.loaded / event.total) * 100);
-            onProgress(percentage);
+      // Phase 1: get a signed upload signature from our backend.
+      this.request('/upload/signature', { method: 'POST' })
+        .then((sig) => {
+          if (!sig?.signature || !sig?.cloudName || !sig?.apiKey) {
+            reject(new Error('Failed to obtain upload signature'));
+            return;
           }
-        };
-      }
 
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data);
-          } catch (e) {
-            resolve(xhr.responseText);
+          // Phase 2: POST directly to Cloudinary. `auto` picks image / video /
+          // raw based on the file's MIME type, matching the legacy backend
+          // behaviour (`resource_type: 'auto'`).
+          const xhr = new XMLHttpRequest();
+          const url = `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`;
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('api_key', sig.apiKey);
+          formData.append('timestamp', sig.timestamp);
+          formData.append('signature', sig.signature);
+          formData.append('folder', sig.folder);
+
+          xhr.open('POST', url, true);
+
+          if (xhr.upload && typeof onProgress === 'function') {
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const percentage = Math.round((event.loaded / event.total) * 100);
+                onProgress(percentage);
+              }
+            };
           }
-        } else {
-          try {
-            const errData = JSON.parse(xhr.responseText);
-            reject(new Error(errData?.message || `Upload failed with status ${xhr.status}`));
-          } catch (e) {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
-          }
-        }
-      };
 
-      xhr.onerror = () => {
-        reject(new Error('Network error during upload'));
-      };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const r = JSON.parse(xhr.responseText);
+                // Reshape Cloudinary's response to match what the legacy
+                // /api/upload endpoint returned, so call sites need no
+                // changes.
+                resolve({
+                  url: r.secure_url,
+                  publicId: r.public_id,
+                  width: r.width,
+                  height: r.height,
+                  format: r.format,
+                  bytes: r.bytes,
+                  resourceType: r.resource_type,
+                  originalFilename: file.name,
+                  mimeType: file.type,
+                  size: file.size,
+                });
+              } catch (e) {
+                reject(new Error('Failed to parse upload response'));
+              }
+            } else {
+              try {
+                const errData = JSON.parse(xhr.responseText);
+                reject(new Error(
+                  errData?.error?.message ||
+                  errData?.message ||
+                  `Upload failed with status ${xhr.status}`
+                ));
+              } catch (e) {
+                reject(new Error(`Upload failed with status ${xhr.status}`));
+              }
+            }
+          };
 
-      xhr.send(formData);
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.send(formData);
+        })
+        .catch((err) => reject(err));
     });
   }
 
