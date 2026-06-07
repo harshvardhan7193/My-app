@@ -95,10 +95,23 @@ const App = () => {
       if (!cancelled) setPreferredTheme('light');
     };
 
+    // The refresh-token cookie is httpOnly so we can't see it directly. We use
+    // localStorage.user as a proxy for "this WebView has logged in at least
+    // once" — set on api.login(), cleared on logout / refresh failure. On a
+    // fresh install (first launch of the Flutter WebView, incognito tab, etc.)
+    // both are empty, so we skip the /auth/refresh probe entirely and avoid a
+    // pointless 401 on the very first page load.
+    const hasPriorSession = !!localStorage.getItem('user');
+
     (async () => {
       try {
         if (api.accessToken) {
           await hydrateFromMe();
+          return;
+        }
+
+        if (!hasPriorSession) {
+          clearSession();
           return;
         }
 
@@ -110,15 +123,18 @@ const App = () => {
 
         await hydrateFromMe();
       } catch {
-        // If token path fails, attempt one silent refresh retry.
-        try {
-          const refreshed = await api.refreshToken();
-          if (refreshed) {
-            await hydrateFromMe();
-            return;
+        // If token path fails, attempt one silent refresh retry — but only if
+        // there was evidence of a prior session to begin with.
+        if (hasPriorSession) {
+          try {
+            const refreshed = await api.refreshToken();
+            if (refreshed) {
+              await hydrateFromMe();
+              return;
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
         }
         clearSession();
       } finally {
