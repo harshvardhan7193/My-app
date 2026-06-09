@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Camera, Image as ImageIcon, Play, FileText, Music2, Download, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -50,6 +50,18 @@ const Chat = () => {
   const cameraInputRef = useRef(null);
   const didInitialScrollRef = useRef(false);
 
+  // Paginated history: start by showing only the latest 20 messages, and
+  // load 20 more older messages each time the user scrolls near the top.
+  const PAGE_SIZE = 20;
+  const [messageLimit, setMessageLimit] = useState(PAGE_SIZE);
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // When true, the next messages update is from a "load more older" event —
+  // skip auto-scroll-to-bottom and instead preserve the user's scroll anchor.
+  const loadingMoreRef = useRef(false);
+  const prevScrollHeightRef = useRef(0);
+  const prevScrollTopRef = useRef(0);
+
   const scrollToBottom = (behavior = 'smooth') => {
     const container = scrollContainerRef.current;
     if (container) {
@@ -59,8 +71,22 @@ const Chat = () => {
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!messages.length) return;
+
+    // Pagination: older messages just streamed in. Restore the user's view so
+    // they stay anchored to the same message they were reading instead of
+    // being yanked to the top or the bottom.
+    if (loadingMoreRef.current) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        const delta = container.scrollHeight - prevScrollHeightRef.current;
+        container.scrollTop = prevScrollTopRef.current + delta;
+      }
+      loadingMoreRef.current = false;
+      setIsLoadingMore(false);
+      return;
+    }
 
     if (!didInitialScrollRef.current) {
       // On first open, jump directly to the latest message.
@@ -72,9 +98,29 @@ const Chat = () => {
       return;
     }
 
-    // After initial open, keep normal smooth scrolling behavior.
+    // After initial open, keep normal smooth scrolling behavior for newly
+    // arrived messages at the bottom.
     scrollToBottom('smooth');
   }, [messages]);
+
+  // Triggered when the user scrolls near the top of the message list — bump
+  // the live window by another page so older history streams in.
+  const handleMessagesScroll = (e) => {
+    const el = e.currentTarget;
+    if (
+      el.scrollTop < 80 &&
+      hasMoreOlder &&
+      !isLoadingMore &&
+      !loadingMoreRef.current &&
+      messages.length >= messageLimit
+    ) {
+      loadingMoreRef.current = true;
+      prevScrollHeightRef.current = el.scrollHeight;
+      prevScrollTopRef.current = el.scrollTop;
+      setIsLoadingMore(true);
+      setMessageLimit((n) => n + PAGE_SIZE);
+    }
+  };
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -93,9 +139,8 @@ const Chat = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Bootstrap: resolve current user + partner, then subscribe to the couple's live message stream
+  // Bootstrap: resolve current user + partner once on mount.
   useEffect(() => {
-    let unsub = null;
     let cancelled = false;
     (async () => {
       try {
@@ -106,21 +151,39 @@ const Chat = () => {
         if (cancelled) return;
         setMe(meData);
         setPartner(partnerData);
-
-        if (meData?.coupleId) {
-          unsub = subscribeMessages(meData.coupleId, (msgs) => {
-            if (!cancelled) setMessages(msgs);
-          });
-        }
       } catch (err) {
         console.error('Chat bootstrap failed:', err);
       }
     })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Subscribe to the live message stream with a growing window. Re-subscribing
+  // when `messageLimit` increases pulls in older history while still keeping
+  // the realtime tail (Firebase RTDB's limitToLast is anchored to the newest
+  // message, so new messages still stream in instantly).
+  useEffect(() => {
+    if (!me?.coupleId) return undefined;
+    let cancelled = false;
+    const unsub = subscribeMessages(
+      me.coupleId,
+      (msgs) => {
+        if (cancelled) return;
+        // If the listener returned fewer messages than we asked for, the chat
+        // has fewer than `messageLimit` total messages — there is no older
+        // history left to load.
+        if (msgs.length < messageLimit) {
+          setHasMoreOlder(false);
+        }
+        setMessages(msgs);
+      },
+      messageLimit,
+    );
     return () => {
       cancelled = true;
-      if (unsub) unsub();
+      unsub();
     };
-  }, []);
+  }, [me?.coupleId, messageLimit]);
 
   const handleSendMessage = async () => {
     const text = inputText.trim();
@@ -447,9 +510,27 @@ const Chat = () => {
       {/* Messages */}
       <div
         ref={scrollContainerRef}
+        onScroll={handleMessagesScroll}
         style={{ flex: 1, padding: '20px', overflowY: 'auto', position: 'relative' }}
         className="hide-scrollbar"
       >
+        {(isLoadingMore || (hasMoreOlder && messages.length >= messageLimit)) && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              padding: '6px 0 14px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-main)',
+              color: 'var(--text-sub)',
+              opacity: 0.75,
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {isLoadingMore ? 'Loading earlier messages…' : 'Scroll up for more'}
+          </div>
+        )}
         <AnimatePresence>
           {messages.map((msg, index) => {
             const msgDate = dateKey(msg.createdAt);

@@ -84,14 +84,20 @@ const messagesRef = (coupleId) => dbRef(db, `chats/${coupleId}/messages`);
  * Subscribe to the live message stream for a couple.
  * Returns an unsubscribe function (call it in useEffect cleanup).
  *
+ * Loads only the most recent `limit` messages (newest-first window). Callers
+ * paginate older history by re-subscribing with a larger limit. New messages
+ * sent into the chat are still delivered in real time because the window is
+ * anchored at the latest message via Firebase's `limitToLast`.
+ *
  * @param {string} coupleId
  * @param {(messages: Array) => void} cb  receives messages sorted ascending by createdAt
+ * @param {number} [limit=20]  how many of the latest messages to keep in the window
  */
-export const subscribeMessages = (coupleId, cb) => {
+export const subscribeMessages = (coupleId, cb, limit = 20) => {
   const q = dbQuery(
     messagesRef(coupleId),
     orderByChild("createdAt"),
-    limitToLast(500),
+    limitToLast(limit),
   );
   const unsub = onValue(q, (snapshot) => {
     const list = [];

@@ -1,12 +1,24 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Image, MessageSquare, Calendar as CalendarIcon, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const BottomNav = () => {
+  const location = useLocation();
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
-    { path: '/gallery', icon: Image, label: 'Memories' },
+    {
+      // Memories section — defaults to /albums, but stays highlighted on the
+      // sibling Memories tab and on individual album/photo deep links.
+      path: '/albums',
+      icon: Image,
+      label: 'Memories',
+      matches: (p) =>
+        p === '/albums' ||
+        p === '/gallery' ||
+        p.startsWith('/album/') ||
+        p.startsWith('/gallery/'),
+    },
     { path: '/calendar', icon: CalendarIcon, label: 'Planner' },
     { path: '/chat', icon: MessageSquare, label: 'Chat' },
     { path: '/profile', icon: User, label: 'You' },
@@ -29,47 +41,56 @@ const BottomNav = () => {
       zIndex: 100,
       boxShadow: '0 10px 30px rgba(0,0,0,0.08)'
     }}>
-      {navItems.map((item) => (
-        <NavLink
-          key={item.path}
-          to={item.path}
-          end={item.path === '/'}
-          style={({ isActive }) => ({
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textDecoration: 'none',
-            color: isActive ? 'var(--blush-pink)' : 'var(--text-muted)',
-            transition: 'color 0.3s ease'
-          })}
-        >
-          {({ isActive }) => (
-            <>
-              <item.icon 
-                size={24} 
-                strokeWidth={isActive ? 2.5 : 2}
-                style={{ marginBottom: '4px' }}
-              />
-              <span style={{ fontSize: '10px', fontWeight: isActive ? 600 : 400, fontFamily: 'var(--font-main)' }}>
-                {item.label}
-              </span>
-              {isActive && (
-                <motion.div
-                  layoutId="active-nav"
-                  style={{
-                    position: 'absolute',
-                    bottom: '8px',
-                    width: '4px',
-                    height: '4px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--blush-pink)'
-                  }}
-                />
-              )}
-            </>
-          )}
-        </NavLink>
-      ))}
+      {navItems.map((item) => {
+        const customActive = item.matches ? item.matches(location.pathname) : null;
+        return (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path === '/'}
+            style={({ isActive }) => {
+              const active = customActive ?? isActive;
+              return {
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: active ? 'var(--blush-pink)' : 'var(--text-muted)',
+                transition: 'color 0.3s ease',
+              };
+            }}
+          >
+            {({ isActive }) => {
+              const active = customActive ?? isActive;
+              return (
+                <>
+                  <item.icon
+                    size={24}
+                    strokeWidth={active ? 2.5 : 2}
+                    style={{ marginBottom: '4px' }}
+                  />
+                  <span style={{ fontSize: '10px', fontWeight: active ? 600 : 400, fontFamily: 'var(--font-main)' }}>
+                    {item.label}
+                  </span>
+                  {active && (
+                    <motion.div
+                      layoutId="active-nav"
+                      style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        width: '4px',
+                        height: '4px',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--blush-pink)',
+                      }}
+                    />
+                  )}
+                </>
+              );
+            }}
+          </NavLink>
+        );
+      })}
     </nav>
   );
 };

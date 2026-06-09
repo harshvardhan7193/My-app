@@ -18,6 +18,14 @@ const AlbumDetail = () => {
   const [totalUploadCount, setTotalUploadCount] = useState(0);
   const fileInputRef = useRef(null);
 
+  // Chunked rendering: only mount the first N tiles, then load more in
+  // batches as the user scrolls. Because un-mounted tiles never instantiate
+  // their <img>/<video>, the network only fetches the chunks the user has
+  // actually scrolled to.
+  const PAGE_SIZE = 12;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef(null);
+
   useEffect(() => {
     const fetchAlbumDetails = async () => {
       try {
@@ -28,6 +36,7 @@ const AlbumDetail = () => {
         if (found) {
           setAlbum(found);
           setPhotos(found.photos || []);
+          setVisibleCount(PAGE_SIZE);
         }
       } catch (err) {
         console.error('Error fetching album details:', err);
@@ -37,6 +46,25 @@ const AlbumDetail = () => {
     };
     fetchAlbumDetails();
   }, [albumId]);
+
+  // Auto-load the next chunk when the bottom sentinel scrolls into view.
+  useEffect(() => {
+    if (loading) return undefined;
+    if (visibleCount >= photos.length) return undefined;
+    const node = sentinelRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((n) => Math.min(n + PAGE_SIZE, photos.length));
+        }
+      },
+      { rootMargin: '300px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loading, visibleCount, photos.length]);
 
   const handlePlusClick = () => {
     fileInputRef.current?.click();
@@ -71,7 +99,11 @@ const AlbumDetail = () => {
             mediaType: mediaType
           });
           setAlbum(updatedAlbum);
-          setPhotos(updatedAlbum.photos || []);
+          const nextPhotos = updatedAlbum.photos || [];
+          setPhotos(nextPhotos);
+          // Make sure newly uploaded items are visible (they're appended at
+          // the end, which would otherwise be past the current chunk window).
+          setVisibleCount((n) => Math.max(n, nextPhotos.length));
         }
 
         setUploadComplete(true);
@@ -160,7 +192,7 @@ const AlbumDetail = () => {
             gridTemplateColumns: 'repeat(3, 1fr)', 
             gap: '8px' 
           }}>
-            {photos.map((photo) => (
+            {photos.slice(0, visibleCount).map((photo) => (
               <motion.div
                 key={photo._id || photo.id}
                 whileHover={{ scale: 1.02 }}
@@ -180,6 +212,7 @@ const AlbumDetail = () => {
                       src={photo.img} 
                       muted 
                       playsInline 
+                      preload="metadata"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />
                     <div style={{
@@ -208,6 +241,28 @@ const AlbumDetail = () => {
               </motion.div>
             ))}
           </div>
+
+          {/* Bottom sentinel — when this scrolls into view, the next chunk loads. */}
+          {visibleCount < photos.length && (
+            <div
+              ref={sentinelRef}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '24px 0 8px',
+                color: 'var(--text-sub)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-main)',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+              }}
+            >
+              <Loader2 size={14} className="animate-spin" />
+              Loading more
+            </div>
+          )}
         </div>
       </div>
 

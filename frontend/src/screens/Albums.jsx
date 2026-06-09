@@ -65,8 +65,8 @@ const Albums = () => {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <div style={{ display: 'flex', gap: '24px' }}>
-          <h2 onClick={() => navigate('/gallery')} style={{ fontSize: '28px', cursor: 'pointer', color: 'var(--text-sub)' }}>Memories</h2>
           <h2 onClick={() => navigate('/albums')} style={{ fontSize: '28px', cursor: 'pointer', color: 'var(--text-main)' }}>Albums</h2>
+          <h2 onClick={() => navigate('/gallery')} style={{ fontSize: '28px', cursor: 'pointer', color: 'var(--text-sub)' }}>Memories</h2>
         </div>
         <motion.div 
           whileTap={{ scale: 0.9 }}

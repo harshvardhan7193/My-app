@@ -7,7 +7,7 @@ import { useNotifications } from './hooks/useNotifications';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import Dashboard from './screens/Dashboard';
 import Gallery from './screens/Gallery';
-import Chat from './screens/Chat';
+import ChatGate from './screens/ChatGate';
 import Timeline from './screens/Timeline';
 import Profile from './screens/Profile';
 import EditProfile from './screens/EditProfile';
@@ -247,7 +247,7 @@ const App = () => {
                 <Route path="/album/:albumId/photo/:id" element={<PhotoView />} />
                 <Route path="/gallery/photo/:id" element={<PhotoView />} />
                 <Route path="/chat-media/photo/:id" element={<PhotoView />} />
-                <Route path="/chat" element={<Chat />} />
+                <Route path="/chat" element={<ChatGate />} />
                 <Route path="/calendar" element={<WithNav><Calendar /></WithNav>} />
                 <Route path="/timeline" element={<WithNav><Timeline /></WithNav>} />
                 <Route path="/profile" element={<WithNav><Profile /></WithNav>} />
