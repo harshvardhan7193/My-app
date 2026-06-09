@@ -15,7 +15,7 @@ const BottomNav = () => {
   return (
     <nav className="glass-nav" style={{
       position: 'fixed',
-      bottom: 'calc(24px + var(--app-pad-bottom, 0px))',
+      bottom: 'calc(4px + var(--app-pad-bottom, 0px))',
       left: '50%',
       transform: 'translateX(-50%)',
       width: 'calc(100% - 40px)',
