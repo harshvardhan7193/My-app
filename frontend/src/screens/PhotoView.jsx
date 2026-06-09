@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { X, Download, Share2, Heart, Info, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
+import { getAlbumUnlockToken } from '../utils/vaultStore';
 
 const PhotoView = () => {
   const { id, albumId } = useParams();
@@ -217,11 +218,26 @@ const PhotoView = () => {
         if (albumId) {
           let currentPhotos = photosList;
           if (isInitialLoad) {
-            const albums = await api.getAlbums();
-            const foundAlbum = albums.find(a => a._id === albumId);
-            if (foundAlbum) {
-              currentPhotos = foundAlbum.photos || [];
-              setPhotosList(currentPhotos);
+            // Use the by-id endpoint so private albums (which are excluded
+            // from the generic /albums list) can also resolve their photos
+            // — the unlock token, if any, comes from the vault store
+            // populated when the user entered the album.
+            try {
+              const foundAlbum = await api.getAlbumById(albumId, {
+                unlockToken: getAlbumUnlockToken(albumId),
+              });
+              if (foundAlbum) {
+                currentPhotos = foundAlbum.photos || [];
+                setPhotosList(currentPhotos);
+              }
+            } catch (err) {
+              if (err.code === 'ALBUM_LOCKED' || err.code === 'ALBUM_UNLOCK_EXPIRED' || err.code === 'ALBUM_UNLOCK_INVALID') {
+                // Token expired between AlbumDetail and PhotoView — bounce
+                // back so the user can re-enter the PIN cleanly.
+                navigate(`/album/${albumId}`, { replace: true });
+                return;
+              }
+              throw err;
             }
           }
           const foundPhoto = currentPhotos.find(p => p._id === id);

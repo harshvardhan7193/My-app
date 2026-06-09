@@ -1,8 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, MoreVertical, Share2, Loader2, Check, Play } from 'lucide-react';
+import { ChevronLeft, Plus, MoreVertical, Share2, Loader2, Check, Play, Lock } from 'lucide-react';
 import api from '../utils/api';
+import {
+  getAlbumUnlockToken,
+  setAlbumUnlockToken,
+  clearAlbumUnlockToken,
+} from '../utils/vaultStore';
 
 const AlbumDetail = () => {
   const { albumId } = useParams();
@@ -11,6 +16,10 @@ const AlbumDetail = () => {
   const [album, setAlbum] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinBusy, setPinBusy] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -26,25 +35,37 @@ const AlbumDetail = () => {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
 
-  useEffect(() => {
-    const fetchAlbumDetails = async () => {
-      try {
-        setLoading(true);
-        // Get all albums and find the target
-        const albums = await api.getAlbums();
-        const found = albums.find(a => a._id === albumId);
-        if (found) {
-          setAlbum(found);
-          setPhotos(found.photos || []);
-          setVisibleCount(PAGE_SIZE);
-        }
-      } catch (err) {
+  // Loads the album, transparently using the unlock token from the vault
+  // store if there is one. If the album turns out to be private and we
+  // don't (yet) have a valid token, the backend returns ALBUM_LOCKED and
+  // we surface a PIN gate instead of the photo grid.
+  const loadAlbum = async () => {
+    setLoading(true);
+    try {
+      const unlockToken = getAlbumUnlockToken(albumId);
+      const found = await api.getAlbumById(albumId, { unlockToken });
+      setAlbum(found);
+      setPhotos(found.photos || []);
+      setVisibleCount(PAGE_SIZE);
+      setLocked(false);
+    } catch (err) {
+      if (err.code === 'ALBUM_LOCKED' || err.code === 'ALBUM_UNLOCK_EXPIRED' || err.code === 'ALBUM_UNLOCK_INVALID') {
+        // Stale or missing token — drop it and prompt for the PIN inline.
+        clearAlbumUnlockToken(albumId);
+        setAlbum(null);
+        setPhotos([]);
+        setLocked(true);
+      } else {
         console.error('Error fetching album details:', err);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchAlbumDetails();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAlbum();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [albumId]);
 
   // Auto-load the next chunk when the bottom sentinel scrolls into view.
@@ -93,11 +114,11 @@ const AlbumDetail = () => {
           const publicId = uploadRes.publicId;
 
           // Append photo/video to album in MongoDB
-          const updatedAlbum = await api.addPhotoToAlbum(albumId, { 
-            img: secureUrl,
-            publicId: publicId,
-            mediaType: mediaType
-          });
+          const updatedAlbum = await api.addPhotoToAlbum(
+            albumId,
+            { img: secureUrl, publicId: publicId, mediaType: mediaType },
+            { unlockToken: getAlbumUnlockToken(albumId) },
+          );
           setAlbum(updatedAlbum);
           const nextPhotos = updatedAlbum.photos || [];
           setPhotos(nextPhotos);
@@ -121,11 +142,92 @@ const AlbumDetail = () => {
     e.target.value = '';
   };
 
+  const submitPin = async () => {
+    if (!/^\d{4,6}$/.test(pinInput)) {
+      setPinError('PIN must be 4–6 digits');
+      return;
+    }
+    setPinBusy(true);
+    setPinError('');
+    try {
+      const { unlockToken } = await api.unlockPrivateAlbum(albumId, pinInput);
+      setAlbumUnlockToken(albumId, unlockToken);
+      setPinInput('');
+      await loadAlbum();
+    } catch (err) {
+      setPinError(err.message || 'Incorrect PIN');
+    } finally {
+      setPinBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sub)' }}>
         Loading album details...
       </div>
+    );
+  }
+
+  // Inline PIN gate. Reached when a private album is opened directly
+  // (e.g. the user navigated via URL) without a fresh unlock token.
+  if (locked) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '20px',
+          padding: '32px',
+          height: '100vh',
+          height: '100dvh',
+          background: 'var(--app-bg)',
+          color: 'var(--text-main)',
+        }}
+      >
+        <div style={{ width: '72px', height: '72px', borderRadius: '36px', background: 'var(--chat-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Lock size={28} color="var(--blush-pink)" />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '20px', fontWeight: 600, marginBottom: '6px' }}>This album is private</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-sub)' }}>Enter the PIN to unlock</div>
+        </div>
+        <input
+          autoFocus
+          type="password"
+          inputMode="numeric"
+          pattern="\d*"
+          maxLength={6}
+          placeholder="••••"
+          value={pinInput}
+          onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+          onKeyDown={(e) => { if (e.key === 'Enter') submitPin(); }}
+          style={{ width: '100%', maxWidth: '280px', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-light)', background: 'var(--chat-bg)', fontSize: '24px', letterSpacing: '0.5em', color: 'var(--text-main)', outline: 'none', textAlign: 'center', fontFamily: 'var(--font-main)' }}
+        />
+        {pinError && (
+          <p style={{ fontSize: '13px', color: '#E45A6F', margin: 0 }}>{pinError}</p>
+        )}
+        <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '280px' }}>
+          <button
+            onClick={() => navigate('/albums')}
+            style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid var(--border-light)', background: 'transparent', color: 'var(--text-sub)', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submitPin}
+            disabled={!pinInput || pinBusy}
+            className="btn-primary"
+            style={{ flex: 1, border: 'none' }}
+          >
+            {pinBusy ? 'Unlocking…' : 'Unlock'}
+          </button>
+        </div>
+      </motion.div>
     );
   }
 
@@ -171,7 +273,12 @@ const AlbumDetail = () => {
               <ChevronLeft size={24} />
             </motion.div>
             <div>
-              <h2 style={{ fontSize: '18px', color: 'var(--text-main)' }}>{album.title}</h2>
+              <h2 style={{ fontSize: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {album.title}
+                {album.isPrivate && (
+                  <Lock size={14} color="var(--blush-pink)" style={{ flexShrink: 0 }} />
+                )}
+              </h2>
               <p style={{ fontSize: '12px', color: 'var(--text-sub)' }}>{photos.length} items</p>
             </div>
           </div>

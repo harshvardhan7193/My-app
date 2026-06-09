@@ -24,6 +24,7 @@ import ChatMedia from './screens/ChatMedia';
 import NotificationSettings from './screens/NotificationSettings';
 import NotificationCenter from './screens/NotificationCenter';
 import BottomNav from './components/BottomNav';
+import RouteLocker from './components/RouteLocker';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/screens/AdminDashboard';
 import UserManagement from './admin/screens/UserManagement';
@@ -225,6 +226,7 @@ const App = () => {
     <AppErrorBoundary>
     <NotificationToastProvider>
       <Router>
+        <RouteLocker />
         <AnimatePresence mode="wait">
           <Routes>
             {/* Consumer Routes (Fixed Width Mobile Container) */}

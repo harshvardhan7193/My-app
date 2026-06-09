@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Shield, Bell, Palette, LogOut, ChevronRight, Heart, Edit2, Send } from 'lucide-react';
+import { Palette, LogOut, ChevronRight, Heart, Edit2, Send } from 'lucide-react';
 import api from '../utils/api';
 
 const Profile = () => {
@@ -99,9 +99,6 @@ const Profile = () => {
   const menuItems = [
     { icon: Edit2, label: 'Edit Profile', color: '#D3E4F4', onClick: () => navigate('/edit-profile') },
     { icon: Palette, label: 'Theme Personalization', color: '#F4D3D3', onClick: toggleTheme },
-    { icon: Bell, label: 'Notification Settings', color: '#EBE8F3', onClick: () => navigate('/notification-settings') },
-    { icon: Shield, label: 'Privacy & Security', color: '#FFF5F2' },
-    { icon: Settings, label: 'Account Preferences', color: '#FFF5F2' },
   ];
 
   return (

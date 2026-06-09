@@ -44,6 +44,16 @@ class ApiClient {
     if (this.accessToken) {
       headers.append('Authorization', `Bearer ${this.accessToken}`);
     }
+    // Per-request extras (e.g. X-Vault-Token, X-Album-Unlock-Token) layered
+    // on top of the standard auth/content-type pair.
+    if (options.headers) {
+      const entries = options.headers instanceof Headers
+        ? Array.from(options.headers.entries())
+        : Object.entries(options.headers);
+      for (const [k, v] of entries) {
+        if (v !== undefined && v !== null && v !== '') headers.set(k, v);
+      }
+    }
     return headers;
   }
 
@@ -64,6 +74,21 @@ class ApiClient {
       const response = await fetch(url, config);
 
       if (response.status === 401 && endpoint !== '/auth/login') {
+        // Peek at the body so we can distinguish session-expiry (where a
+        // silent refresh will fix things) from privacy gates like a
+        // missing/expired vault or album-unlock token (where refreshing
+        // the access token is meaningless and would just hide the real
+        // error code).
+        let body = null;
+        try { body = await response.clone().json(); } catch { /* non-JSON */ }
+        const PRIVACY_CODES = new Set([
+          'VAULT_LOCKED', 'VAULT_EXPIRED', 'VAULT_INVALID',
+          'ALBUM_LOCKED', 'ALBUM_UNLOCK_EXPIRED', 'ALBUM_UNLOCK_INVALID',
+        ]);
+        if (body?.code && PRIVACY_CODES.has(body.code)) {
+          return this.handleResponse(response);
+        }
+
         // Try a silent refresh once. If it works, retry the original request.
         const refreshed = await this.refreshToken();
         if (refreshed) {
@@ -95,7 +120,12 @@ class ApiClient {
 
     if (!response.ok) {
       const errorMessage = data?.message || response.statusText || 'An error occurred';
-      throw new Error(errorMessage);
+      const err = new Error(errorMessage);
+      // Surface the backend's machine-readable error code (e.g.
+      // ALBUM_LOCKED, VAULT_EXPIRED) so callers can branch on it.
+      if (data?.code) err.code = data.code;
+      err.status = response.status;
+      throw err;
     }
 
     return data;
@@ -219,40 +249,103 @@ class ApiClient {
   }
 
   // --- Albums API ---
+
+  // Helper: build the optional vault / album-unlock header pair so callers
+  // can pass either, both, or neither without juggling the literal header
+  // names at every call site.
+  _privacyHeaders({ vaultToken, unlockToken } = {}) {
+    const headers = {};
+    if (vaultToken) headers['X-Vault-Token'] = vaultToken;
+    if (unlockToken) headers['X-Album-Unlock-Token'] = unlockToken;
+    return headers;
+  }
+
   getAlbums() {
     return this.request('/albums');
   }
 
-  createAlbum(album) {
+  // Vault-gated. Returns private-album metadata (title, cover, photo
+  // count, etc.) WITHOUT photo URLs or descriptions until each album is
+  // individually unlocked.
+  getPrivateAlbums(vaultToken) {
+    return this.request('/albums/private', {
+      headers: this._privacyHeaders({ vaultToken }),
+    });
+  }
+
+  // For private albums the caller must pass the unlockToken returned by
+  // unlockAlbum(). Public albums work the same as before.
+  getAlbumById(albumId, { unlockToken } = {}) {
+    return this.request(`/albums/${albumId}`, {
+      headers: this._privacyHeaders({ unlockToken }),
+    });
+  }
+
+  // To create a private album, pass `{ isPrivate: true, pin: '1234' }` and
+  // the vault token. The PIN never reaches storage as plaintext — the
+  // backend bcrypts it on receipt.
+  createAlbum(album, { vaultToken } = {}) {
     return this.request('/albums', {
       method: 'POST',
       body: album,
+      headers: this._privacyHeaders({ vaultToken }),
     });
   }
 
-  updateAlbum(id, updates) {
+  updateAlbum(id, updates, { unlockToken } = {}) {
     return this.request(`/albums/${id}`, {
       method: 'PUT',
       body: updates,
+      headers: this._privacyHeaders({ unlockToken }),
     });
   }
 
-  deleteAlbum(id) {
+  deleteAlbum(id, { unlockToken } = {}) {
     return this.request(`/albums/${id}`, {
       method: 'DELETE',
+      headers: this._privacyHeaders({ unlockToken }),
     });
   }
 
-  addPhotoToAlbum(albumId, photo) {
+  addPhotoToAlbum(albumId, photo, { unlockToken } = {}) {
     return this.request(`/albums/${albumId}/photos`, {
       method: 'POST',
       body: photo,
+      headers: this._privacyHeaders({ unlockToken }),
     });
   }
 
-  deletePhotoFromAlbum(albumId, photoId) {
+  deletePhotoFromAlbum(albumId, photoId, { unlockToken } = {}) {
     return this.request(`/albums/${albumId}/photos/${photoId}`, {
       method: 'DELETE',
+      headers: this._privacyHeaders({ unlockToken }),
+    });
+  }
+
+  // PIN check. On success returns { unlockToken: '<jwt>' } valid for ~15 min.
+  unlockPrivateAlbum(albumId, pin) {
+    return this.request(`/albums/${albumId}/unlock`, {
+      method: 'POST',
+      body: { pin },
+    });
+  }
+
+  // Recovery path: replaces the PIN of a private album. Allowed only from
+  // inside the vault (account-password gate). Returns a fresh unlockToken.
+  resetAlbumPin(albumId, newPin, vaultToken) {
+    return this.request(`/albums/${albumId}/reset-pin`, {
+      method: 'POST',
+      body: { pin: newPin },
+      headers: this._privacyHeaders({ vaultToken }),
+    });
+  }
+
+  // Re-verifies the user's account password and mints a vault token used
+  // to enter the private-album section.
+  verifyAccountPassword(password) {
+    return this.request('/auth/verify-password', {
+      method: 'POST',
+      body: { password },
     });
   }
 
