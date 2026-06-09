@@ -340,7 +340,7 @@ const WithNav = ({ children }) => (
     <div style={{ 
       flex: 1, 
       overflowY: 'auto', 
-      paddingBottom: '90px', 
+      paddingBottom: 'calc(90px + var(--app-pad-bottom, 0px))', 
       WebkitOverflowScrolling: 'touch' 
     }} className="hide-scrollbar">
       {children}

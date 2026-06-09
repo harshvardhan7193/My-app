@@ -46,6 +46,12 @@
   --dark-text-secondary: #A89F9F;
   --dark-border: rgba(255, 255, 255, 0.05);
   --dark-glow: rgba(244, 211, 211, 0.1);
+
+  /* Consumer (mobile) app frame padding. Uses iOS safe-area when present,
+     otherwise falls back to a fixed visual gap so the app never sits flush
+     against the device edge inside the Flutter WebView. */
+  --app-pad-top: max(env(safe-area-inset-top, 0px), 16px);
+  --app-pad-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
 }
 
 body.dark-mode {
@@ -142,6 +148,8 @@ h1, h2, h3, h4 {
   display: flex;
   flex-direction: column;
   background-color: var(--warm-white);
+  padding-top: var(--app-pad-top);
+  padding-bottom: var(--app-pad-bottom);
 }
 
 .glass-nav {
