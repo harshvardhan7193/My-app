@@ -16,6 +16,13 @@ const albumSchema = new mongoose.Schema({
   createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   coupleId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Couple', required: true },
   photos:      [photoSchema],
+
+  // Private album: hidden from the public album list, only listed inside
+  // the "vault" (which itself requires the account password to enter), and
+  // gated behind a per-album numeric PIN to actually open. pinHash stores a
+  // bcrypt hash of the PIN and is never returned to the client.
+  isPrivate:   { type: Boolean, default: false },
+  pinHash:     { type: String, default: '', select: false },
 }, { timestamps: true });
 
 // Virtual for photo count

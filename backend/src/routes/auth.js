@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { login, refresh, logout } from '../controllers/authController.js';
+import { login, refresh, logout, verifyAccountPassword } from '../controllers/authController.js';
 import { validate } from '../middleware/validate.js';
 import { protect } from '../middleware/auth.js';
 
@@ -13,5 +13,6 @@ router.post('/login', [
 
 router.post('/refresh', refresh);
 router.post('/logout', protect, logout);
+router.post('/verify-password', protect, verifyAccountPassword);
 
 export default router;

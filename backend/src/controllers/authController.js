@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { generateAccessToken, generateRefreshToken, setRefreshCookie, clearRefreshCookie } from '../utils/generateToken.js';
+import { signVaultToken } from '../utils/albumTokens.js';
 
 // Escape regex metacharacters in user input before embedding in a $regex query
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -85,6 +86,35 @@ export const refresh = asyncHandler(async (req, res) => {
 
   const accessToken = generateAccessToken(user);
   res.json({ accessToken });
+});
+
+// @desc    Re-verify the user's account password and issue a short-lived
+//          "vault token" used to enter the private-album vault. Does NOT
+//          rotate the refresh cookie or change the access token — it only
+//          mints an auxiliary token that other endpoints look for via the
+//          X-Vault-Token header.
+// @route   POST /api/auth/verify-password
+export const verifyAccountPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body || {};
+  if (!password || typeof password !== 'string') {
+    res.status(400);
+    throw new Error('Password is required');
+  }
+
+  const user = await User.findById(req.user._id).select('+password');
+  if (!user) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+
+  const ok = await user.comparePassword(password);
+  if (!ok) {
+    res.status(401);
+    throw new Error('Incorrect password');
+  }
+
+  const vaultToken = signVaultToken(user._id);
+  res.json({ vaultToken });
 });
 
 // @desc    Logout user
