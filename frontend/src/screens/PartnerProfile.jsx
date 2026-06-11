@@ -1,40 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, MapPin, Calendar, Heart, MessageSquare, Bell, Shield, LogOut, ChevronRight, X, Smartphone, Mail, Lock, Eye, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 
 const PartnerProfile = () => {
   const navigate = useNavigate();
   const [activeModal, setActiveModal] = useState(null); // 'notifications', 'privacy', 'relationship'
+  const [partnerData, setPartnerData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const closeModal = () => setActiveModal(null);
 
-  const partnerData = React.useMemo(() => {
-    const saved = localStorage.getItem('currentUser');
-    if (saved) {
+  useEffect(() => {
+    const fetchData = async () => {
       try {
-        const user = JSON.parse(saved);
-        if (user.role === 'female') {
-          return {
-            name: "Harsh Panchal",
-            location: "London, UK",
-            birthday: "May 15, 1996",
-            anniversary: "Oct 14, 2021",
-            profileImage: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop"
-          };
-        }
-      } catch (e) {
-        // ignore
+        const [partner, settings] = await Promise.all([
+          api.getPartner(),
+          api.getSettings()
+        ]);
+
+        const formatDate = (dateString) => {
+          if (!dateString) return 'Not set';
+          const options = { month: 'short', day: 'numeric', year: 'numeric' };
+          return new Date(dateString).toLocaleDateString('en-US', options);
+        };
+
+        setPartnerData({
+          name: partner?.name || "Partner",
+          location: partner?.location || "Location not set",
+          birthday: formatDate(partner?.birthday),
+          anniversary: formatDate(settings?.anniversaryDate),
+          profileImage: partner?.avatar || "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop"
+        });
+      } catch (err) {
+        console.error("Failed to load partner profile data", err);
+        setPartnerData({
+          name: "Partner",
+          location: "Location not set",
+          birthday: "Not set",
+          anniversary: "Not set",
+          profileImage: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop"
+        });
+      } finally {
+        setLoading(false);
       }
-    }
-    return {
-      name: "Neha Panchal",
-      location: "London, UK",
-      birthday: "June 12, 1998",
-      anniversary: "Oct 14, 2021",
-      profileImage: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop"
     };
+
+    fetchData();
   }, []);
+
+  if (loading || !partnerData) {
+    return (
+      <div style={{ backgroundColor: 'var(--app-bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sub)' }}>
+        Loading profile...
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -68,7 +90,7 @@ const PartnerProfile = () => {
         <motion.div
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/chat', { state: { doorOpened: true } })}
           style={{
             position: 'absolute',
             top: '24px',
@@ -150,22 +172,6 @@ const PartnerProfile = () => {
             icon={MessageSquare}
             label="View Chat Media"
             onClick={() => navigate('/chat-media')}
-          />
-          <ActionItem
-            icon={Bell}
-            label="Notification Settings"
-            onClick={() => setActiveModal('notifications')}
-          />
-          <ActionItem
-            icon={Shield}
-            label="Privacy & Safety"
-            onClick={() => setActiveModal('privacy')}
-          />
-          <ActionItem
-            icon={LogOut}
-            label="Relationship Status"
-            color="#FF5252"
-            onClick={() => setActiveModal('relationship')}
           />
         </div>
       </div>

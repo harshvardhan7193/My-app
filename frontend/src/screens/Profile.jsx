@@ -72,7 +72,14 @@ const Profile = () => {
   };
 
   const handleSignOut = async () => {
-    try { await api.logout(); } catch { /* ignore */ }
+    try {
+      const fcmToken = localStorage.getItem('fcmToken');
+      if (fcmToken) {
+        await api.deregisterFcmToken(fcmToken);
+        localStorage.removeItem('fcmToken');
+      }
+      await api.logout(); 
+    } catch { /* ignore */ }
     navigate('/login');
   };
 

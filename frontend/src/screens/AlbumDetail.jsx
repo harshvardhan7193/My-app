@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, MoreVertical, Share2, Loader2, Check, Play, Lock } from 'lucide-react';
+import { ChevronLeft, Plus, MoreVertical, Share2, Loader2, Check, Play, Lock, Trash2, FolderOutput, X } from 'lucide-react';
 import api from '../utils/api';
 import {
   getAlbumUnlockToken,
@@ -26,6 +26,13 @@ const AlbumDetail = () => {
   const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
   const [totalUploadCount, setTotalUploadCount] = useState(0);
   const fileInputRef = useRef(null);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState(new Set());
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [availableAlbums, setAvailableAlbums] = useState([]);
+  const longPressTimer = useRef(null);
+  const justEnteredSelectionMode = useRef(false);
 
   // Chunked rendering: only mount the first N tiles, then load more in
   // batches as the user scrolls. Because un-mounted tiles never instantiate
@@ -140,6 +147,81 @@ const AlbumDetail = () => {
       }
     }
     e.target.value = '';
+  };
+
+  const handleTouchStart = (photoId) => {
+    if (selectionMode) return;
+    justEnteredSelectionMode.current = false;
+    longPressTimer.current = setTimeout(() => {
+      setSelectionMode(true);
+      setSelectedPhotos(new Set([photoId]));
+      justEnteredSelectionMode.current = true;
+      longPressTimer.current = null;
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handlePhotoClick = (photoId, e) => {
+    if (justEnteredSelectionMode.current) {
+      justEnteredSelectionMode.current = false;
+      return;
+    }
+    if (selectionMode) {
+      if (e) e.preventDefault();
+      setSelectedPhotos(prev => {
+        const next = new Set(prev);
+        if (next.has(photoId)) next.delete(photoId);
+        else next.add(photoId);
+        if (next.size === 0) setSelectionMode(false);
+        return next;
+      });
+    } else {
+      navigate(`/album/${albumId}/photo/${photoId}`);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!window.confirm(`Delete ${selectedPhotos.size} selected items?`)) return;
+    try {
+      const ids = Array.from(selectedPhotos);
+      await api.deletePhotos(albumId, ids, { unlockToken: getAlbumUnlockToken(albumId) });
+      setPhotos(photos.filter(p => !selectedPhotos.has(p._id || p.id)));
+      setSelectionMode(false);
+      setSelectedPhotos(new Set());
+    } catch (err) {
+      console.error('Failed to delete photos:', err);
+      alert('Failed to delete selected items.');
+    }
+  };
+
+  const openMoveModal = async () => {
+    try {
+      const allAlbums = await api.getAlbums();
+      setAvailableAlbums(allAlbums.filter(a => (a._id || a.id) !== albumId));
+      setShowMoveModal(true);
+    } catch (err) {
+      console.error('Failed to load albums:', err);
+    }
+  };
+
+  const confirmMove = async (targetAlbumId) => {
+    try {
+      const ids = Array.from(selectedPhotos);
+      await api.movePhotos(albumId, targetAlbumId, ids, { unlockToken: getAlbumUnlockToken(albumId) });
+      setPhotos(photos.filter(p => !selectedPhotos.has(p._id || p.id)));
+      setSelectionMode(false);
+      setSelectedPhotos(new Set());
+      setShowMoveModal(false);
+    } catch (err) {
+      console.error('Failed to move photos:', err);
+      alert('Failed to move selected items.');
+    }
   };
 
   const submitPin = async () => {
@@ -274,17 +356,27 @@ const AlbumDetail = () => {
             </motion.div>
             <div>
               <h2 style={{ fontSize: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {album.title}
-                {album.isPrivate && (
+                {selectionMode ? `${selectedPhotos.size} selected` : album.title}
+                {!selectionMode && album.isPrivate && (
                   <Lock size={14} color="var(--blush-pink)" style={{ flexShrink: 0 }} />
                 )}
               </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-sub)' }}>{photos.length} items</p>
+              {!selectionMode && (
+                <p style={{ fontSize: '12px', color: 'var(--text-sub)' }}>{photos.length} items</p>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: '16px', color: 'var(--text-sub)' }}>
-            <Share2 size={20} />
-            <MoreVertical size={20} />
+            {selectionMode ? (
+              <motion.div whileTap={{ scale: 0.9 }} onClick={() => { setSelectionMode(false); setSelectedPhotos(new Set()); }} style={{ cursor: 'pointer' }}>
+                <X size={24} />
+              </motion.div>
+            ) : (
+              <>
+                <Share2 size={20} />
+                <MoreVertical size={20} />
+              </>
+            )}
           </div>
         </div>
 
@@ -299,21 +391,55 @@ const AlbumDetail = () => {
             gridTemplateColumns: 'repeat(3, 1fr)', 
             gap: '8px' 
           }}>
-            {photos.slice(0, visibleCount).map((photo) => (
-              <motion.div
-                key={photo._id || photo.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/album/${albumId}/photo/${photo._id || photo.id}`)}
-                style={{ 
-                  aspectRatio: '1/1', 
-                  borderRadius: '12px', 
-                  overflow: 'hidden',
-                  backgroundColor: 'var(--chat-bg)',
-                  cursor: 'pointer'
-                }}
-              >
-                {photo.mediaType === 'video' || photo.img.match(/\.(mp4|webm|mov|avi|ogg)/i) || photo.img.includes('/video/upload/') ? (
+            {photos.slice(0, visibleCount).map((photo) => {
+              const photoId = photo._id || photo.id;
+              const isSelected = selectedPhotos.has(photoId);
+              return (
+                <motion.div
+                  key={photoId}
+                  whileHover={{ scale: selectionMode ? 1 : 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={(e) => handlePhotoClick(photoId, e)}
+                  onMouseDown={() => handleTouchStart(photoId)}
+                  onMouseUp={handleTouchEnd}
+                  onMouseLeave={handleTouchEnd}
+                  onTouchStart={() => handleTouchStart(photoId)}
+                  onTouchEnd={handleTouchEnd}
+                  style={{ 
+                    aspectRatio: '1/1', 
+                    borderRadius: '12px', 
+                    overflow: 'hidden',
+                    backgroundColor: 'var(--chat-bg)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transform: isSelected ? 'scale(0.95)' : 'scale(1)',
+                    transition: 'transform 0.2s ease',
+                  }}
+                >
+                  {isSelected && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundColor: 'rgba(0,0,0,0.3)',
+                      zIndex: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '16px',
+                        backgroundColor: 'var(--blush-pink)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Check size={20} color="white" />
+                      </div>
+                    </div>
+                  )}
+                  {photo.mediaType === 'video' || photo.img.match(/\.(mp4|webm|mov|avi|ogg)/i) || photo.img.includes('/video/upload/') ? (
                   <div style={{ width: '100%', height: '100%', position: 'relative' }}>
                     <video 
                       src={photo.img} 
@@ -344,9 +470,10 @@ const AlbumDetail = () => {
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     alt=""
                   />
-                )}
-              </motion.div>
-            ))}
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
 
           {/* Bottom sentinel — when this scrolls into view, the next chunk loads. */}
@@ -455,30 +582,172 @@ const AlbumDetail = () => {
       </AnimatePresence>
 
       {/* Floating Add Button */}
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={handlePlusClick}
-        style={{
-          position: 'fixed',
-          bottom: '30px',
-          right: '30px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '28px',
-          background: 'linear-gradient(135deg, var(--blush-pink), var(--dusty-rose))',
-          color: 'white',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 8px 24px rgba(255, 183, 197, 0.4)',
-          zIndex: 1000,
-          cursor: 'pointer'
-        }}
-      >
-        <Plus size={24} />
-      </motion.button>
+      {!selectionMode && (
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={handlePlusClick}
+          style={{
+            position: 'fixed',
+            bottom: '30px',
+            right: '30px',
+            width: '56px',
+            height: '56px',
+            borderRadius: '28px',
+            background: 'linear-gradient(135deg, var(--blush-pink), var(--dusty-rose))',
+            color: 'white',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 8px 24px rgba(255, 183, 197, 0.4)',
+            zIndex: 1000,
+            cursor: 'pointer'
+          }}
+        >
+          <Plus size={24} />
+        </motion.button>
+      )}
+
+      {/* Selection Action Bar */}
+      <AnimatePresence>
+        {selectionMode && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'var(--header-bg)',
+              borderTop: '1px solid var(--border-light)',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-around',
+              backdropFilter: 'blur(10px)',
+              zIndex: 1100,
+              paddingBottom: 'env(safe-area-inset-bottom, 16px)'
+            }}
+          >
+            <button
+              onClick={handleDeleteSelected}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'transparent',
+                border: 'none',
+                color: '#E45A6F',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              <Trash2 size={24} />
+              Delete
+            </button>
+            <button
+              onClick={openMoveModal}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-main)',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              <FolderOutput size={24} />
+              Move
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Move Modal */}
+      <AnimatePresence>
+        {showMoveModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)'
+          }}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              style={{
+                width: '100%',
+                backgroundColor: 'var(--card-bg)',
+                borderTopLeftRadius: '24px',
+                borderTopRightRadius: '24px',
+                padding: '24px 20px',
+                maxHeight: '70vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 -10px 40px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-main)' }}>Move to Album</h3>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowMoveModal(false)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-sub)', cursor: 'pointer' }}
+                >
+                  <X size={24} />
+                </motion.button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }} className="hide-scrollbar">
+                {availableAlbums.length === 0 ? (
+                  <p style={{ color: 'var(--text-sub)', textAlign: 'center', padding: '20px' }}>No other albums available.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {availableAlbums.map(a => (
+                      <div
+                        key={a._id || a.id}
+                        onClick={() => confirmMove(a._id || a.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '16px',
+                          padding: '12px',
+                          borderRadius: '16px',
+                          backgroundColor: 'var(--app-bg)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--chat-bg)' }}>
+                          {a.coverUrl || (a.photos && a.photos[0]) ? (
+                            <img src={a.coverUrl || a.photos[0].img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                          ) : null}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-main)' }}>{a.title}</p>
+                          <p style={{ fontSize: '13px', color: 'var(--text-sub)' }}>{a.count || (a.photos ? a.photos.length : 0)} items</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

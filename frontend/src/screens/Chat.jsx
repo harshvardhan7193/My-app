@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Camera, Image as ImageIcon, Play, FileText, Music2, Download, ExternalLink } from 'lucide-react';
+import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Camera, Image as ImageIcon, Play, FileText, Music2, Download, ExternalLink, Reply, Check, CheckCheck, Copy, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { subscribeMessages, pushMessage } from '../config/firebase';
+import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
 import chatBgDark from '../assets/images/chat background/theme1 dark.png';
 
@@ -41,6 +41,11 @@ const Chat = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [replyToMsg, setReplyToMsg] = useState(null);
+  const [floatingHearts, setFloatingHearts] = useState([]);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const [longPressedMsg, setLongPressedMsg] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(
     typeof document !== 'undefined' && document.body.classList.contains('dark-mode')
   );
@@ -48,6 +53,7 @@ const Chat = () => {
   const scrollContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const textInputRef = useRef(null);
   const didInitialScrollRef = useRef(false);
 
   // Paginated history: start by showing only the latest 20 messages, and
@@ -107,6 +113,9 @@ const Chat = () => {
   // the live window by another page so older history streams in.
   const handleMessagesScroll = (e) => {
     const el = e.currentTarget;
+    const isScrolledUp = el.scrollHeight - el.scrollTop - el.clientHeight > 300;
+    setShowScrollDown(isScrolledUp);
+
     if (
       el.scrollTop < 80 &&
       hasMoreOlder &&
@@ -176,6 +185,13 @@ const Chat = () => {
           setHasMoreOlder(false);
         }
         setMessages(msgs);
+
+        // Mark incoming messages as read
+        msgs.forEach(msg => {
+          if (msg.sender !== String(me._id) && msg.status !== 'read') {
+            updateMessageStatus(me.coupleId, msg.id, 'read').catch(console.error);
+          }
+        });
       },
       messageLimit,
     );
@@ -190,16 +206,24 @@ const Chat = () => {
     if (!text || !me?.coupleId) return;
     setInputText('');
     try {
-      await pushMessage(me.coupleId, {
+      const payload = {
         text,
         sender: String(me._id),
         type: 'text',
-      });
+      };
+      if (replyToMsg) {
+        payload.replyToId = replyToMsg.id;
+        payload.replyToText = replyToMsg.text || (replyToMsg.type === 'image' ? '📷 Photo' : (replyToMsg.type === 'video' ? '🎥 Video' : (replyToMsg.type === 'audio' ? '🎵 Audio' : '📁 File')));
+        payload.replyToSender = replyToMsg.sender;
+        setReplyToMsg(null);
+      }
+      const msgId = await pushMessage(me.coupleId, payload);
       api.logActivity('Sent a message', 'chat').catch(() => {});
       if (partner?._id) {
         api.sendChatNotification({
           recipientId: String(partner._id),
-          messagePreview: text
+          messagePreview: text,
+          messageId: msgId
         }).catch((err) => console.error('Failed to send chat push notification:', err));
       }
     } catch (err) {
@@ -214,10 +238,28 @@ const Chat = () => {
     }
   };
 
+  const triggerHeartAnimation = () => {
+    const colors = ['#FFB7C5', '#FF5252', '#FF8A80', '#FF1744', '#F48FB1'];
+    const newHearts = Array.from({ length: 24 }).map((_, i) => ({
+      id: Date.now() + i,
+      left: Math.random() * 80 + 10, // spread across 10% to 90%
+      size: Math.random() * 40 + 30, // sizes between 30px and 70px
+      duration: Math.random() * 4 + 4, // 4s to 8s
+      delay: Math.random() * 0.5,
+      rotation: Math.random() * 60 - 30, // slight rotation
+      color: colors[Math.floor(Math.random() * colors.length)]
+    }));
+    setFloatingHearts(prev => [...prev, ...newHearts]);
+    setTimeout(() => {
+      setFloatingHearts(prev => prev.filter(h => !newHearts.find(n => n.id === h.id)));
+    }, 8500);
+  };
+
   const sendHeart = async () => {
     if (!me?.coupleId) return;
+    triggerHeartAnimation();
     try {
-      await pushMessage(me.coupleId, {
+      const msgId = await pushMessage(me.coupleId, {
         text: '❤️',
         sender: String(me._id),
         type: 'text',
@@ -226,8 +268,9 @@ const Chat = () => {
       if (partner?._id) {
         api.sendChatNotification({
           recipientId: String(partner._id),
-          messagePreview: '❤️'
-        }).catch((err) => console.error('Failed to send chat push notification:', err));
+          messagePreview: '❤️',
+          messageId: msgId
+        }).catch(() => {});
       }
     } catch (err) {
       console.error('Failed to send heart:', err);
@@ -240,22 +283,44 @@ const Chat = () => {
     setTimeout(() => setShowToast(false), 2000);
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
-      const matches = messages
-        .filter(m => (m.text || '').toLowerCase().includes(searchQuery.toLowerCase()))
-        .map(m => m.id);
+      const matches = await searchAllMessages(me.coupleId, searchQuery);
 
       if (matches.length > 0) {
         setSearchResults(matches);
         const lastIndex = matches.length - 1;
         setCurrentResultIndex(lastIndex);
-        scrollToMessage(matches[lastIndex]);
+        focusSearchResult(matches[lastIndex]);
       } else {
         setSearchResults([]);
         setCurrentResultIndex(-1);
         triggerToast('No matches found');
       }
+    }
+  };
+
+  const focusSearchResult = (match) => {
+    if (match.indexFromEnd > messageLimit) {
+      setMessageLimit(match.indexFromEnd + 20);
+      const tryScroll = (attempts = 0) => {
+        const el = document.getElementById(`msg-${match.id}`);
+        const container = scrollContainerRef.current;
+        if (el && container) {
+          const topPos = el.offsetTop;
+          container.scrollTo({
+            top: topPos - (container.offsetHeight / 2) + (el.offsetHeight / 2),
+            behavior: 'smooth'
+          });
+          setHighlightedId(match.id);
+          setTimeout(() => setHighlightedId(null), 2000);
+        } else if (attempts < 20) {
+          setTimeout(() => tryScroll(attempts + 1), 100);
+        }
+      };
+      tryScroll();
+    } else {
+      scrollToMessage(match.id);
     }
   };
 
@@ -273,6 +338,13 @@ const Chat = () => {
     }
   };
 
+  const handleScrollToBottom = () => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
   const navigateResults = (direction) => {
     if (searchResults.length === 0) return;
     let newIndex = currentResultIndex + direction;
@@ -280,7 +352,7 @@ const Chat = () => {
     if (newIndex >= searchResults.length) newIndex = 0;
 
     setCurrentResultIndex(newIndex);
-    scrollToMessage(searchResults[newIndex]);
+    focusSearchResult(searchResults[newIndex]);
   };
 
   const handleFileUpload = async (e) => {
@@ -309,7 +381,7 @@ const Chat = () => {
       });
       setUploadingLabel('Sending message...');
       setUploadProgress(97);
-      await pushMessage(me.coupleId, {
+      const payload = {
         type: messageType,
         mediaUrl: uploadRes.url,
         mediaPublicId: uploadRes.publicId,
@@ -319,7 +391,14 @@ const Chat = () => {
         mediaFormat: uploadRes.format,
         mediaResourceType: uploadRes.resourceType,
         sender: String(me._id),
-      });
+      };
+      if (replyToMsg) {
+        payload.replyToId = replyToMsg.id;
+        payload.replyToText = replyToMsg.text || (replyToMsg.type === 'image' ? '📷 Photo' : (replyToMsg.type === 'video' ? '🎥 Video' : (replyToMsg.type === 'audio' ? '🎵 Audio' : '📁 File')));
+        payload.replyToSender = replyToMsg.sender;
+        setReplyToMsg(null);
+      }
+      await pushMessage(me.coupleId, payload);
       api.logActivity('Sent a message', 'chat').catch(() => {});
       if (partner?._id) {
         api.sendChatNotification({
@@ -564,13 +643,27 @@ const Chat = () => {
                   style={{
                     display: 'flex',
                     justifyContent: isMine ? 'flex-end' : 'flex-start',
-                    marginBottom: '16px'
+                    marginBottom: '16px',
+                    position: 'relative'
                   }}
                 >
-                  <div
+                  <motion.div
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.06}
+                    onDragEnd={(e, info) => {
+                      if (info.offset.x > 50) {
+                        setReplyToMsg(msg);
+                        textInputRef.current?.focus();
+                      }
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setLongPressedMsg(msg);
+                    }}
                     style={{
                       maxWidth: '75%',
-                      padding: (msg.type === 'image' || msg.type === 'video') ? '4px' : '12px 18px',
+                      padding: (msg.type === 'image' || msg.type === 'video') ? '4px' : '6px 10px 8px 12px',
                       borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
                       backgroundColor: highlightedId === msg.id
                         ? 'rgba(255, 183, 197, 0.4)'
@@ -582,9 +675,33 @@ const Chat = () => {
                       position: 'relative',
                       transition: 'all 0.3s ease',
                       border: highlightedId === msg.id ? '1px solid var(--blush-pink)' : 'none',
-                      overflow: 'hidden'
+                      overflow: 'hidden',
+                      zIndex: 2
                     }}
                   >
+                    {msg.replyToId && (
+                      <div
+                        onClick={() => scrollToMessage(msg.replyToId)}
+                        style={{
+                          backgroundColor: 'rgba(0,0,0,0.08)',
+                          borderRadius: '8px',
+                          padding: '4px 8px',
+                          marginBottom: (msg.type === 'image' || msg.type === 'video') ? '4px' : '6px',
+                          cursor: 'pointer',
+                          borderLeft: '4px solid var(--blush-pink)',
+                          fontSize: '12px',
+                          display: 'flex',
+                          flexDirection: 'column'
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: msg.replyToSender === String(me._id) ? 'var(--blush-pink)' : 'var(--text-main)', marginBottom: '2px' }}>
+                          {msg.replyToSender === String(me._id) ? 'You' : (partner?.name || 'Partner')}
+                        </span>
+                        <span style={{ opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {msg.replyToText}
+                        </span>
+                      </div>
+                    )}
                     {msg.type === 'image' || msg.type === 'video' ? (
                       <div
                         style={{ position: 'relative', cursor: 'pointer' }}
@@ -636,22 +753,30 @@ const Chat = () => {
                           background: 'rgba(0,0,0,0.3)',
                           backdropFilter: 'blur(4px)',
                           padding: '2px 8px',
-                          borderRadius: '10px'
+                          borderRadius: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
                         }}>
-                          <p style={{ fontSize: '10px', color: 'white' }}>{msgTime}</p>
+                          <p style={{ fontSize: '10px', color: 'white', margin: 0 }}>{msgTime}</p>
+                          {isMine && (
+                            <span style={{ display: 'flex', color: 'white', opacity: 0.9 }}>
+                              {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ) : msg.type === 'audio' ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Music2 size={16} />
-                          <p style={{ fontSize: '13px', opacity: 0.85, fontWeight: 600, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <p style={{ fontSize: '13px', margin: 0, opacity: 0.85, fontWeight: 600, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {msg.mediaName || 'Audio file'}
                           </p>
                         </div>
                         <audio src={msg.mediaUrl} controls style={{ width: '100%' }} preload="metadata" />
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <p style={{ fontSize: '10px', opacity: 0.65 }}>{formatBytes(msg.mediaSize)}</p>
+                          <p style={{ fontSize: '10px', margin: 0, opacity: 0.65 }}>{formatBytes(msg.mediaSize)}</p>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <a href={msg.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', display: 'inline-flex' }}>
                               <ExternalLink size={14} />
@@ -663,7 +788,14 @@ const Chat = () => {
                             >
                               <Download size={14} />
                             </button>
-                            <p style={{ fontSize: '10px', opacity: 0.65 }}>{msgTime}</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.65 }}>
+                              <p style={{ fontSize: '10px', margin: 0 }}>{msgTime}</p>
+                              {isMine && (
+                                <span style={{ display: 'flex' }}>
+                                  {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -674,10 +806,10 @@ const Chat = () => {
                             <FileText size={18} />
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <p style={{ fontSize: '13px', margin: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {msg.mediaName || 'File attachment'}
                             </p>
-                            <p style={{ fontSize: '10px', opacity: 0.65 }}>
+                            <p style={{ fontSize: '10px', margin: 0, marginTop: '2px', opacity: 0.65 }}>
                               {[msg.mediaMimeType || 'file', formatBytes(msg.mediaSize)].filter(Boolean).join(' • ')}
                             </p>
                           </div>
@@ -695,21 +827,37 @@ const Chat = () => {
                               <Download size={14} />
                             </button>
                           </div>
-                          <p style={{ fontSize: '10px', opacity: 0.65 }}>{msgTime}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.65 }}>
+                            <p style={{ fontSize: '10px', margin: 0 }}>{msgTime}</p>
+                            {isMine && (
+                              <span style={{ display: 'flex' }}>
+                                {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ) : (
-                      <>
-                        <p style={{ fontSize: '15px' }}>{msg.text}</p>
-                        <p style={{
-                          fontSize: '10px',
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                        <p style={{ fontSize: '15px', margin: 0, wordBreak: 'break-word', lineHeight: 1.3 }}>{msg.text}</p>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
                           opacity: 0.6,
-                          marginTop: '4px',
-                          textAlign: 'right'
-                        }}>{msgTime}</p>
-                      </>
+                          flexShrink: 0,
+                          marginLeft: 'auto'
+                        }}>
+                          <p style={{ fontSize: '10px', margin: 0, whiteSpace: 'nowrap' }}>{msgTime}</p>
+                          {isMine && (
+                            <span style={{ display: 'flex' }}>
+                              {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </div>
+                  </motion.div>
                 </motion.div>
               </React.Fragment>
             );
@@ -719,7 +867,40 @@ const Chat = () => {
       </div>
 
       {/* Input Area */}
-      <div style={{ padding: '0px 20px 24px 20px', position: 'relative' }}>
+      <div style={{ padding: '0px 20px 24px 20px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        <AnimatePresence>
+          {replyToMsg && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{
+                backgroundColor: 'var(--header-bg)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '16px 16px 0 0',
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                border: '1px solid var(--border-light)',
+                borderBottom: 'none',
+                marginBottom: '-12px',
+                zIndex: 1
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1, borderLeft: '4px solid var(--blush-pink)', paddingLeft: '10px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--blush-pink)' }}>
+                  Replying to {replyToMsg.sender === String(me._id) ? 'You' : (partner?.name || 'Partner')}
+                </span>
+                <span style={{ fontSize: '13px', color: 'var(--text-sub)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {replyToMsg.text || (replyToMsg.type === 'image' ? '📷 Photo' : (replyToMsg.type === 'video' ? '🎥 Video' : (replyToMsg.type === 'audio' ? '🎵 Audio' : '📁 File')))}
+                </span>
+              </div>
+              <X size={20} color="var(--text-sub)" style={{ cursor: 'pointer', padding: '4px' }} onClick={() => setReplyToMsg(null)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
         {uploadProgress !== null && (
           <div
             style={{
@@ -801,6 +982,8 @@ const Chat = () => {
         </AnimatePresence>
 
         <div className="premium-card" style={{
+          position: 'relative',
+          zIndex: 2,
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
@@ -831,6 +1014,7 @@ const Chat = () => {
           />
           <input
             type="text"
+            ref={textInputRef}
             placeholder="Type a love note..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -977,6 +1161,61 @@ const Chat = () => {
           </>
         )}
       </AnimatePresence>
+      <AnimatePresence>
+        {floatingHearts.map((h) => (
+          <motion.div
+            key={h.id}
+            initial={{ opacity: 0, y: 0, scale: 0, rotate: h.rotation }}
+            animate={{ 
+              opacity: [0, 1, 1, 0], 
+              y: -(window.innerHeight + 200), 
+              scale: 1, 
+              rotate: h.rotation + (Math.random() * 60 - 30) 
+            }}
+            transition={{ duration: h.duration, delay: h.delay, ease: [0.25, 1, 0.5, 1] }}
+            style={{
+              position: 'fixed',
+              bottom: '-50px',
+              left: `${h.left}%`,
+              zIndex: 9999,
+              pointerEvents: 'none',
+              filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.2))'
+            }}
+          >
+            <Heart size={h.size} fill={h.color} color={h.color} />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showScrollDown && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            onClick={handleScrollToBottom}
+            style={{
+              position: 'absolute',
+              bottom: '120px',
+              right: '20px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '20px',
+              backgroundColor: 'var(--card-bg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 10,
+              border: '1px solid var(--border-light)'
+            }}
+          >
+            <ChevronDown size={24} color="var(--text-main)" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Toast Notification */}
       <AnimatePresence>
         {showToast && (
@@ -1000,6 +1239,147 @@ const Chat = () => {
           >
             {toastMessage}
           </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Long Press Context Menu */}
+      <AnimatePresence>
+        {longPressedMsg && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLongPressedMsg(null)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                zIndex: 4000,
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 50 }}
+              style={{
+                position: 'fixed',
+                bottom: '40px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: 'var(--card-bg)',
+                borderRadius: '16px',
+                padding: '16px',
+                display: 'flex',
+                gap: '24px',
+                zIndex: 4001,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+              }}
+            >
+              <div 
+                onClick={() => {
+                  setReplyToMsg(longPressedMsg);
+                  setLongPressedMsg(null);
+                  setTimeout(() => textInputRef.current?.focus(), 100);
+                }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Reply size={22} color="#3b82f6" />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>Reply</span>
+              </div>
+              <div 
+                onClick={() => {
+                  navigator.clipboard.writeText(longPressedMsg.text || '');
+                  triggerToast('Copied to clipboard');
+                  setLongPressedMsg(null);
+                }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Copy size={22} color="#10b981" />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>Copy</span>
+              </div>
+              <div 
+                onClick={() => {
+                  setShowInfoModal(longPressedMsg);
+                  setLongPressedMsg(null);
+                }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Info size={22} color="#8b5cf6" />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>Info</span>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Info Modal */}
+      <AnimatePresence>
+        {showInfoModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowInfoModal(null)}
+              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 5000 }}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                backgroundColor: 'var(--card-bg)',
+                borderRadius: '24px 24px 0 0',
+                padding: '24px',
+                zIndex: 5001,
+                boxShadow: '0 -8px 32px rgba(0,0,0,0.1)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Message Info</h3>
+                <X size={24} color="var(--text-sub)" onClick={() => setShowInfoModal(null)} style={{ cursor: 'pointer' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <Check size={20} color="var(--text-sub)" />
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>Sent</p>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-sub)' }}>
+                      {showInfoModal.createdAt ? new Date(showInfoModal.createdAt).toLocaleString() : 'Unknown'}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <CheckCheck size={20} color="var(--text-sub)" />
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>Delivered</p>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-sub)' }}>
+                      {showInfoModal.deliveredAt ? new Date(showInfoModal.deliveredAt).toLocaleString() : '—'}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <CheckCheck size={20} color="#3b82f6" />
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>Read</p>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-sub)' }}>
+                      {showInfoModal.readAt ? new Date(showInfoModal.readAt).toLocaleString() : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </motion.div>

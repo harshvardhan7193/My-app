@@ -30,6 +30,18 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
+  // Mark message as delivered if it's a chat message
+  if (payload.data?.messageId && payload.data?.coupleId) {
+    fetch('/api/notifications/chat-delivered', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        messageId: payload.data.messageId, 
+        coupleId: payload.data.coupleId 
+      })
+    }).catch(err => console.error('[firebase-messaging-sw.js] Delivery update failed:', err));
+  }
+
   const notificationTitle = payload.notification?.title || 'Aura';
   const notificationOptions = {
     body: payload.notification?.body,

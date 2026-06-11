@@ -22,12 +22,16 @@ const ChatMedia = () => {
           if (!cancelled) setLoading(false);
           return;
         }
-        unsub = subscribeMessages(me.coupleId, (msgs) => {
-          if (!cancelled) {
-            setMessages(msgs);
-            setLoading(false);
-          }
-        });
+        unsub = subscribeMessages(
+          me.coupleId,
+          (msgs) => {
+            if (!cancelled) {
+              setMessages(msgs);
+              setLoading(false);
+            }
+          },
+          1000
+        );
       } catch (err) {
         console.error('Failed loading chat media:', err);
         if (!cancelled) setLoading(false);

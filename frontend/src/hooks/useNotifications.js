@@ -17,6 +17,7 @@ export const useNotifications = (isAuthenticated) => {
         const token = await requestNotificationPermission();
         if (token) {
           setFcmToken(token);
+          localStorage.setItem('fcmToken', token);
           setPermissionState('granted');
           await api.registerFcmToken(token);
           registeredRef.current = true;
@@ -56,6 +57,7 @@ export const useNotifications = (isAuthenticated) => {
       const token = await requestNotificationPermission();
       if (token) {
         setFcmToken(token);
+        localStorage.setItem('fcmToken', token);
         setPermissionState('granted');
         await api.registerFcmToken(token);
         registeredRef.current = true;
@@ -78,6 +80,7 @@ export const useNotifications = (isAuthenticated) => {
         console.error('Failed to deregister FCM token:', err);
       }
       setFcmToken(null);
+      localStorage.removeItem('fcmToken');
       registeredRef.current = false;
     }
   };

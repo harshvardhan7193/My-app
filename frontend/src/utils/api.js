@@ -322,6 +322,26 @@ class ApiClient {
     });
   }
 
+  deletePhotos(albumId, photoIds, { unlockToken } = {}) {
+    return this.request(`/albums/${albumId}/photos`, {
+      method: 'DELETE',
+      body: { photoIds },
+      headers: this._privacyHeaders({ unlockToken }),
+    });
+  }
+
+  movePhotos(albumId, targetAlbumId, photoIds, { unlockToken, targetUnlockToken } = {}) {
+    const headers = this._privacyHeaders({ unlockToken });
+    if (targetUnlockToken) {
+      headers['X-Target-Album-Unlock-Token'] = targetUnlockToken;
+    }
+    return this.request(`/albums/${albumId}/move-photos`, {
+      method: 'POST',
+      body: { targetAlbumId, photoIds },
+      headers,
+    });
+  }
+
   // PIN check. On success returns { unlockToken: '<jwt>' } valid for ~15 min.
   unlockPrivateAlbum(albumId, pin) {
     return this.request(`/albums/${albumId}/unlock`, {

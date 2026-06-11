@@ -35,7 +35,8 @@ const Dashboard = () => {
         setCurrentUser(me);
         setPartnerUser(partner);
         setSettings(coupleSettings);
-        setMemories(memoriesData.memories || memoriesData || []);
+        const fetchedMemories = memoriesData.memories || memoriesData || [];
+        setMemories([...fetchedMemories].sort((a, b) => new Date(b.date) - new Date(a.date)));
         setUnreadCount(unreadData?.count || 0);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -361,31 +362,6 @@ const Dashboard = () => {
         </motion.div>
       )}
 
-      {/* Floating Add Button */}
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => setShowAddModal(true)}
-        style={{
-          position: 'fixed',
-          bottom: '110px',
-          right: '30px',
-          width: '60px',
-          height: '60px',
-          borderRadius: '30px',
-          background: 'linear-gradient(135deg, var(--blush-pink), var(--dusty-rose))',
-          color: 'white',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 8px 24px rgba(255, 183, 197, 0.5)',
-          zIndex: 1000,
-          cursor: 'pointer'
-        }}
-      >
-        <Plus size={28} />
-      </motion.button>
 
       {/* Modals */}
       <AnimatePresence>

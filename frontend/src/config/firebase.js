@@ -8,7 +8,9 @@ import {
   onValue,
   push as dbPush,
   remove as dbRemove,
+  update as dbUpdate,
   serverTimestamp,
+  get,
 } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
@@ -115,6 +117,7 @@ export const subscribeMessages = (coupleId, cb, limit = 20) => {
 export const pushMessage = async (coupleId, message) => {
   const result = await dbPush(messagesRef(coupleId), {
     ...message,
+    status: 'sent',
     createdAt: serverTimestamp(),
   });
   return result.key;
@@ -123,5 +126,39 @@ export const pushMessage = async (coupleId, message) => {
 /** Remove a single message from a couple's chat. */
 export const removeMessage = (coupleId, messageId) =>
   dbRemove(dbRef(db, `chats/${coupleId}/messages/${messageId}`));
+
+/** Search all messages and return matching IDs and their required pagination limit */
+export const searchAllMessages = async (coupleId, searchText) => {
+  const snapshot = await get(messagesRef(coupleId));
+  if (!snapshot.exists()) return [];
+
+  const list = [];
+  snapshot.forEach((child) => {
+    list.push({ id: child.key, ...child.val() });
+  });
+  list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  const matches = [];
+  const lowerSearch = searchText.toLowerCase();
+
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i];
+    if ((m.text || "").toLowerCase().includes(lowerSearch)) {
+      matches.push({
+        id: m.id,
+        indexFromEnd: list.length - i,
+      });
+    }
+  }
+  return matches;
+};
+
+/** Update the status of a specific message (sent, delivered, read) */
+export const updateMessageStatus = (coupleId, messageId, status) => {
+  const updates = { status };
+  if (status === 'delivered') updates.deliveredAt = serverTimestamp();
+  if (status === 'read') updates.readAt = serverTimestamp();
+  return dbUpdate(dbRef(db, `chats/${coupleId}/messages/${messageId}`), updates);
+};
 
 export default app;

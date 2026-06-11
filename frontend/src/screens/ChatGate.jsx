@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import Chat from './Chat';
 import BottomNav from '../components/BottomNav';
 
@@ -43,7 +44,8 @@ const Sparkle = ({ left, top, delay, size }) => (
 );
 
 const ChatGate = () => {
-  const [phase, setPhase] = useState('closed');
+  const location = useLocation();
+  const [phase, setPhase] = useState(location.state?.doorOpened ? 'open' : 'closed');
 
   const handleEnter = () => {
     if (phase !== 'closed') return;

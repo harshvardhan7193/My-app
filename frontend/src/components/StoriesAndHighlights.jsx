@@ -365,31 +365,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
             <span style={{ fontSize: '12px', marginTop: '6px', fontWeight: 500, maxWidth: '75px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.9 }}>
               {hl.title}
             </span>
-            {/* Owner delete button */}
-            {hl.createdBy === currentUser?._id && (
-              <button 
-                onClick={(e) => handleDeleteHighlight(hl._id, e)}
-                style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-4px',
-                  backgroundColor: 'rgba(239, 68, 68, 0.9)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '16px',
-                  height: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '9px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-              >
-                <X size={10} />
-              </button>
-            )}
+
           </div>
         ))}
 
