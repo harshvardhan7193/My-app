@@ -74,10 +74,30 @@ export const sendChatNotification = asyncHandler(async (req, res) => {
   await sendPushToUser(recipientId, {
     title: `New message from ${senderName}`,
     body: messagePreview,
-    data: { url: '/chat' }
+    data: { url: '/chat', messageId, coupleId: req.coupleId }
   }, 'chat');
 
   res.status(200).json({ message: 'Chat notification triggered' });
+});
+
+// @desc    Mark chat message as delivered (called by service worker)
+// @route   POST /api/notifications/chat-delivered
+export const markChatDelivered = asyncHandler(async (req, res) => {
+  const { messageId, coupleId } = req.body;
+  if (!messageId || !coupleId) {
+    return res.status(400).json({ message: 'Missing messageId or coupleId' });
+  }
+
+  // Import admin directly to update the realtime database
+  const admin = (await import('../config/firebase.js')).default;
+  const db = admin.database();
+  
+  await db.ref(`chats/${coupleId}/messages/${messageId}`).update({
+    status: 'delivered',
+    deliveredAt: admin.database.ServerValue.TIMESTAMP
+  });
+
+  res.status(200).json({ message: 'Marked as delivered' });
 });
 
 // --- User Facing APIs (Phase 8) ---

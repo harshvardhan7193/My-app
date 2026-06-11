@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sendNotification, getHistory, sendChatNotification, sendNudge, getMyNotifications, getUnreadNotificationCount, markNotificationRead } from '../controllers/notificationController.js';
+import { sendNotification, getHistory, sendChatNotification, sendNudge, getMyNotifications, getUnreadNotificationCount, markNotificationRead, markChatDelivered } from '../controllers/notificationController.js';
 import { protect, injectCoupleId } from '../middleware/auth.js';
 import { adminOnly } from '../middleware/adminAuth.js';
 
@@ -9,6 +9,7 @@ router.use(protect, injectCoupleId);
 
 // User-facing routes
 router.post('/chat-push', sendChatNotification);
+router.post('/chat-delivered', markChatDelivered);
 router.post('/nudge', sendNudge);
 router.get('/mine', getMyNotifications);
 router.get('/unread-count', getUnreadNotificationCount);

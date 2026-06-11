@@ -197,6 +197,72 @@ export const deletePhoto = asyncHandler(async (req, res) => {
   res.json(sanitize(album));
 });
 
+export const deletePhotos = asyncHandler(async (req, res) => {
+  const { photoIds } = req.body;
+  if (!Array.isArray(photoIds)) {
+    res.status(400); throw new Error('photoIds must be an array');
+  }
+
+  const album = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  if (!album) { res.status(404); throw new Error('Album not found'); }
+
+  if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
+
+  const removedPhotos = album.photos.filter(p => photoIds.includes(p._id.toString()));
+  album.photos = album.photos.filter(p => !photoIds.includes(p._id.toString()));
+  await album.save();
+
+  removedPhotos.forEach(p => destroyAsset(p.publicId));
+
+  res.json(sanitize(album));
+});
+
+export const movePhotos = asyncHandler(async (req, res) => {
+  const { targetAlbumId, photoIds } = req.body;
+  if (!targetAlbumId || !Array.isArray(photoIds)) {
+    res.status(400); throw new Error('Missing targetAlbumId or photoIds');
+  }
+
+  const sourceAlbum = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  const targetAlbum = await Album.findOne({ _id: targetAlbumId, coupleId: req.coupleId });
+
+  if (!sourceAlbum || !targetAlbum) {
+    res.status(404); throw new Error('Source or target album not found');
+  }
+
+  if (sourceAlbum.isPrivate && !ensureAlbumUnlock(req, res, sourceAlbum)) return;
+
+  if (targetAlbum.isPrivate) {
+    const targetToken = req.headers['x-target-album-unlock-token'];
+    if (!targetToken) {
+       res.status(401).json({ message: 'Target album is locked', code: 'TARGET_ALBUM_LOCKED' });
+       return;
+    }
+    try {
+      verifyAlbumUnlockToken(targetToken, req.user._id, targetAlbum._id);
+    } catch (e) {
+      res.status(401).json({ message: 'Invalid target unlock', code: 'TARGET_ALBUM_UNLOCK_INVALID' });
+      return;
+    }
+  }
+
+  const movingPhotos = sourceAlbum.photos.filter(p => photoIds.includes(p._id.toString()));
+  sourceAlbum.photos = sourceAlbum.photos.filter(p => !photoIds.includes(p._id.toString()));
+  
+  const newPhotos = movingPhotos.map(p => ({
+    img: p.img,
+    publicId: p.publicId,
+    mediaType: p.mediaType
+  }));
+  
+  targetAlbum.photos.push(...newPhotos);
+
+  await sourceAlbum.save();
+  await targetAlbum.save();
+
+  res.json(sanitize(sourceAlbum));
+});
+
 // ── Unlock (PIN check) ──────────────────────────────────────────────────
 // Verifies the user-supplied PIN against the stored bcrypt hash and, on
 // success, mints a 15-minute album-unlock JWT scoped to (userId, albumId).

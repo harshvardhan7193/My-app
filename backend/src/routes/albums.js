@@ -7,6 +7,8 @@ import {
   deleteAlbum,
   addPhoto,
   deletePhoto,
+  deletePhotos,
+  movePhotos,
   getPrivateAlbums,
   unlockAlbum,
   resetAlbumPin,
@@ -42,6 +44,8 @@ router.post('/', (req, res, next) => {
 router.route('/').get(getAlbums);
 router.route('/:id').get(getAlbum).put(updateAlbum).delete(deleteAlbum);
 router.post('/:id/photos', addPhoto);
+router.delete('/:id/photos', deletePhotos); // Bulk delete
+router.post('/:id/move-photos', movePhotos); // Bulk move
 router.delete('/:id/photos/:photoId', deletePhoto);
 
 export default router;
