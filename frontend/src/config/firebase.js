@@ -113,14 +113,15 @@ export const subscribeMessages = (coupleId, cb, limit = 20) => {
   return unsub;
 };
 
-/** Push a new message onto a couple's chat. Returns the new RTDB key. */
-export const pushMessage = async (coupleId, message) => {
-  const result = await dbPush(messagesRef(coupleId), {
+/** Push a new message onto a couple's chat. Returns the new RTDB key immediately. */
+export const pushMessage = (coupleId, message) => {
+  const newRef = dbPush(messagesRef(coupleId));
+  dbUpdate(newRef, {
     ...message,
     status: 'sent',
     createdAt: serverTimestamp(),
   });
-  return result.key;
+  return newRef.key;
 };
 
 /** Remove a single message from a couple's chat. */

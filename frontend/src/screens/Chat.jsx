@@ -45,6 +45,7 @@ const Chat = () => {
   const [floatingHearts, setFloatingHearts] = useState([]);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [longPressedMsg, setLongPressedMsg] = useState(null);
+  const [contextMenuPos, setContextMenuPos] = useState(null);
   const [showInfoModal, setShowInfoModal] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(
     typeof document !== 'undefined' && document.body.classList.contains('dark-mode')
@@ -55,6 +56,7 @@ const Chat = () => {
   const cameraInputRef = useRef(null);
   const textInputRef = useRef(null);
   const didInitialScrollRef = useRef(false);
+  const processedMessageIdsRef = useRef(new Set());
 
   // Paginated history: start by showing only the latest 20 messages, and
   // load 20 more older messages each time the user scrolls near the top.
@@ -217,7 +219,7 @@ const Chat = () => {
         payload.replyToSender = replyToMsg.sender;
         setReplyToMsg(null);
       }
-      const msgId = await pushMessage(me.coupleId, payload);
+      const msgId = pushMessage(me.coupleId, payload);
       api.logActivity('Sent a message', 'chat').catch(() => {});
       if (partner?._id) {
         api.sendChatNotification({
@@ -239,27 +241,44 @@ const Chat = () => {
   };
 
   const triggerHeartAnimation = () => {
-    const colors = ['#FFB7C5', '#FF5252', '#FF8A80', '#FF1744', '#F48FB1'];
-    const newHearts = Array.from({ length: 24 }).map((_, i) => ({
-      id: Date.now() + i,
-      left: Math.random() * 80 + 10, // spread across 10% to 90%
-      size: Math.random() * 40 + 30, // sizes between 30px and 70px
-      duration: Math.random() * 4 + 4, // 4s to 8s
-      delay: Math.random() * 0.5,
-      rotation: Math.random() * 60 - 30, // slight rotation
-      color: colors[Math.floor(Math.random() * colors.length)]
-    }));
+    const newHearts = [{
+      id: Date.now(),
+      left: 50,
+      size: 160,
+      duration: 4,
+      delay: 0,
+      rotation: Math.random() * 20 - 10,
+      color: '#FF1744'
+    }];
     setFloatingHearts(prev => [...prev, ...newHearts]);
     setTimeout(() => {
       setFloatingHearts(prev => prev.filter(h => !newHearts.find(n => n.id === h.id)));
-    }, 8500);
+    }, 4500);
   };
+
+  useEffect(() => {
+    if (!messages.length) return;
+    const currentIds = new Set(messages.map(m => m.id));
+    const previousIds = processedMessageIdsRef.current;
+    
+    const newMessages = messages.filter(m => !previousIds.has(m.id));
+    newMessages.forEach(msg => {
+      if (msg.sender !== String(me?._id) && msg.text === '❤️') {
+        // Only animate if the message was sent within the last 10 seconds
+        if (msg.createdAt > Date.now() - 10000) {
+          triggerHeartAnimation();
+        }
+      }
+    });
+
+    processedMessageIdsRef.current = currentIds;
+  }, [messages, me?._id]);
 
   const sendHeart = async () => {
     if (!me?.coupleId) return;
     triggerHeartAnimation();
     try {
-      const msgId = await pushMessage(me.coupleId, {
+      const msgId = pushMessage(me.coupleId, {
         text: '❤️',
         sender: String(me._id),
         type: 'text',
@@ -278,9 +297,10 @@ const Chat = () => {
   };
 
   const triggerToast = (msg) => {
-    setToastMessage(msg);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    // Disabled per user request
+    // setToastMessage(msg);
+    // setShowToast(true);
+    // setTimeout(() => setShowToast(false), 2000);
   };
 
   const handleSearch = async (e) => {
@@ -659,6 +679,14 @@ const Chat = () => {
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const isBottom = rect.bottom > window.innerHeight - 150;
+                      setContextMenuPos({
+                        top: isBottom ? undefined : rect.bottom + 8,
+                        bottom: isBottom ? window.innerHeight - rect.top + 8 : undefined,
+                        right: isMine ? (window.innerWidth - rect.right) : undefined,
+                        left: isMine ? undefined : rect.left,
+                      });
                       setLongPressedMsg(msg);
                     }}
                     style={{
@@ -1006,12 +1034,13 @@ const Chat = () => {
             capture="environment"
             style={{ display: 'none' }}
           />
-          <Paperclip
-            size={20}
-            color="var(--text-muted)"
-            style={{ cursor: 'pointer' }}
+          <motion.div
+            whileTap={{ scale: 0.9 }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '4px', cursor: 'pointer' }}
             onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-          />
+          >
+            <Paperclip size={20} color="var(--text-muted)" />
+          </motion.div>
           <input
             type="text"
             ref={textInputRef}
@@ -1165,21 +1194,21 @@ const Chat = () => {
         {floatingHearts.map((h) => (
           <motion.div
             key={h.id}
-            initial={{ opacity: 0, y: 0, scale: 0, rotate: h.rotation }}
+            initial={{ opacity: 0, y: 0, scale: 0.5, rotate: h.rotation }}
             animate={{ 
-              opacity: [0, 1, 1, 0], 
-              y: -(window.innerHeight + 200), 
-              scale: 1, 
-              rotate: h.rotation + (Math.random() * 60 - 30) 
+              opacity: [0, 1, 0.8, 0], 
+              y: -(window.innerHeight + 100), 
+              scale: [0.5, 1.2, 1], 
+              rotate: h.rotation + (Math.random() * 30 - 15) 
             }}
-            transition={{ duration: h.duration, delay: h.delay, ease: [0.25, 1, 0.5, 1] }}
+            transition={{ duration: h.duration, delay: h.delay, ease: "easeOut" }}
             style={{
               position: 'fixed',
-              bottom: '-50px',
-              left: `${h.left}%`,
+              bottom: '0px',
+              left: `calc(${h.left}% - ${h.size / 2}px)`,
               zIndex: 9999,
               pointerEvents: 'none',
-              filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.2))'
+              willChange: 'transform, opacity'
             }}
           >
             <Heart size={h.size} fill={h.color} color={h.color} />
@@ -1258,14 +1287,16 @@ const Chat = () => {
               }}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 50 }}
+              initial={{ opacity: 0, scale: 0.9, y: contextMenuPos?.bottom ? 10 : -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 50 }}
+              exit={{ opacity: 0, scale: 0.9, y: contextMenuPos?.bottom ? 10 : -10 }}
               style={{
                 position: 'fixed',
-                bottom: '40px',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                top: contextMenuPos?.top,
+                bottom: contextMenuPos?.bottom,
+                left: contextMenuPos?.left,
+                right: contextMenuPos?.right,
+                transform: 'none',
                 backgroundColor: 'var(--card-bg)',
                 borderRadius: '16px',
                 padding: '16px',

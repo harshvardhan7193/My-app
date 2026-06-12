@@ -1,10 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Image, MessageSquare, Calendar as CalendarIcon, User } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { subscribeMessages } from '../config/firebase';
 
 const BottomNav = () => {
   const location = useLocation();
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('currentUser');
+    if (!saved) return;
+    let user;
+    try { user = JSON.parse(saved); } catch { return; }
+    
+    if (!user?.coupleId) return;
+
+    const unsub = subscribeMessages(
+      user.coupleId,
+      (messages) => {
+        // Any message from the partner that isn't read
+        const unread = messages.some(msg => msg.sender !== String(user._id) && msg.status !== 'read');
+        setHasUnreadChat(unread);
+      },
+      15
+    );
+
+    return unsub;
+  }, []);
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
     {
@@ -64,11 +87,29 @@ const BottomNav = () => {
               const active = customActive ?? isActive;
               return (
                 <>
-                  <item.icon
-                    size={24}
-                    strokeWidth={active ? 2.5 : 2}
-                    style={{ marginBottom: '4px' }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <item.icon
+                      size={24}
+                      strokeWidth={active ? 2.5 : 2}
+                      style={{ marginBottom: '4px' }}
+                    />
+                    {item.path === '/chat' && hasUnreadChat && !active && (
+                      <motion.div
+                        animate={{ opacity: [1, 0, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        style={{
+                          position: 'absolute',
+                          top: '-2px',
+                          right: '-4px',
+                          width: '8px',
+                          height: '8px',
+                          backgroundColor: 'var(--blush-pink)',
+                          borderRadius: '50%',
+                          border: '2px solid var(--card-bg)'
+                        }}
+                      />
+                    )}
+                  </div>
                   <span style={{ fontSize: '10px', fontWeight: active ? 600 : 400, fontFamily: 'var(--font-main)' }}>
                     {item.label}
                   </span>

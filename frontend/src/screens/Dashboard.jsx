@@ -137,34 +137,6 @@ const Dashboard = () => {
         <div style={{ display: 'flex', gap: '16px' }}>
           <motion.div
             whileTap={{ scale: 0.9 }}
-            onClick={() => navigate('/notifications')}
-            className="premium-card"
-            style={{ padding: '10px', borderRadius: '14px', cursor: 'pointer', position: 'relative' }}
-          >
-            <Bell size={20} color="var(--text-secondary)" />
-            {unreadCount > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                background: '#FF4D4D',
-                color: 'white',
-                fontSize: '10px',
-                fontWeight: 'bold',
-                width: '18px',
-                height: '18px',
-                borderRadius: '9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid var(--bg-main)'
-              }}>
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </div>
-            )}
-          </motion.div>
-          <motion.div
-            whileTap={{ scale: 0.9 }}
             onClick={() => navigate('/profile')}
             className="premium-card"
             style={{ padding: '10px', borderRadius: '14px', cursor: 'pointer' }}

@@ -26,6 +26,7 @@ import NotificationSettings from './screens/NotificationSettings';
 import NotificationCenter from './screens/NotificationCenter';
 import BottomNav from './components/BottomNav';
 import RouteLocker from './components/RouteLocker';
+import RoutePersister from './components/RoutePersister';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/screens/AdminDashboard';
 import UserManagement from './admin/screens/UserManagement';
@@ -111,6 +112,24 @@ const resolveShouldUseDark = (theme = 'light') => {
 const applyTheme = (theme = 'light') => {
   document.body.classList.toggle('dark-mode', resolveShouldUseDark(theme));
 };
+
+// Attempt to restore last route before Router initializes
+if (typeof window !== 'undefined' && !window.__didRestoreRoute) {
+  window.__didRestoreRoute = true;
+  try {
+    const lastRoute = localStorage.getItem('lastRoute');
+    const timestamp = localStorage.getItem('lastRouteTime');
+    
+    // If opening at the root URL and we have a saved route from the last 12 hours
+    if (window.location.pathname === '/' && lastRoute && lastRoute !== '/' && lastRoute !== '/login') {
+      if (timestamp && (Date.now() - parseInt(timestamp, 10) < 12 * 60 * 60 * 1000)) {
+        window.history.replaceState(null, '', lastRoute);
+      }
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+}
 
 const App = () => {
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -228,6 +247,7 @@ const App = () => {
       <Router>
         <NotificationToastProvider>
           <RouteLocker />
+          <RoutePersister />
           <AnimatePresence mode="wait">
             <Routes>
               {/* Consumer Routes (Fixed Width Mobile Container) */}
@@ -236,7 +256,7 @@ const App = () => {
                     exists, skip the login screen and go straight to the app. */}
                 <Route
                   path="/login"
-                  element={api.accessToken ? <Navigate to="/" replace /> : <Login />}
+                  element={<LoginRoute />}
                 />
                 <Route path="/signup" element={<Navigate to="/login" replace />} />
 
@@ -310,6 +330,16 @@ const RequireAuth = () => {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
   return <Outlet />;
+};
+
+// Guards the login route so logged-in users bounce to Dashboard.
+// Must be a component rather than an inline ternary so it dynamically reads
+// api.accessToken upon navigation instead of relying on stale closures.
+const LoginRoute = () => {
+  if (api.accessToken) {
+    return <Navigate to="/" replace />;
+  }
+  return <Login />;
 };
 
 // Guards /admin/* — only users with role === 'admin' may pass.

@@ -11,8 +11,9 @@ export const NotificationToastProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
 
   const showNotification = useCallback((notification) => {
-    const id = Date.now().toString() + Math.random().toString();
-    setNotifications((prev) => [...prev, { id, ...notification }]);
+    // Disabled per user request to remove all toasts
+    // const id = Date.now().toString() + Math.random().toString();
+    // setNotifications((prev) => [...prev, { id, ...notification }]);
   }, []);
 
   const dismissNotification = useCallback((id) => {
