@@ -56,19 +56,12 @@ export const getHistory = asyncHandler(async (req, res) => {
 // @desc    Send chat notification (from frontend)
 // @route   POST /api/notifications/chat-push
 export const sendChatNotification = asyncHandler(async (req, res) => {
-  const { recipientId, messagePreview } = req.body;
+  const { recipientId, messagePreview, messageId } = req.body;
   if (!recipientId || !messagePreview) {
     return res.status(400).json({ message: 'Missing recipientId or messagePreview' });
   }
 
-  // Very basic in-memory rate limiting (debounce)
-  // In production with multiple instances, use Redis.
-  const cacheKey = `chat_push_${recipientId}`;
-  const now = Date.now();
-  if (global[cacheKey] && now - global[cacheKey] < 30000) {
-    return res.status(200).json({ message: 'Rate limited (30s debounce)' });
-  }
-  global[cacheKey] = now;
+  // Debounce removed to ensure all messages trigger a notification
 
   const senderName = req.user.name;
   await sendPushToUser(recipientId, {
@@ -113,12 +106,7 @@ export const sendNudge = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Partner not found' });
   }
 
-  const cacheKey = `nudge_${partner._id}`;
-  const now = Date.now();
-  if (global[cacheKey] && now - global[cacheKey] < 30000) {
-    return res.status(200).json({ message: 'Rate limited (30s debounce)' });
-  }
-  global[cacheKey] = now;
+  // Debounce removed to ensure all nudges trigger a notification
 
   const senderName = req.user.name.split(' ')[0];
   await sendPushToUser(partner._id, {
