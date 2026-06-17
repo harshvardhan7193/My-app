@@ -15,15 +15,22 @@ const ChatMedia = () => {
     let unsub = null;
     let cancelled = false;
 
-    (async () => {
-      try {
-        const me = await api.getMe();
-        if (!me?.coupleId || cancelled) {
-          if (!cancelled) setLoading(false);
-          return;
-        }
+    const init = async () => {
+      let coupleId = null;
+
+      // Try local storage first
+      const savedUser = localStorage.getItem('user') || localStorage.getItem('currentUser');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          coupleId = parsed.coupleId;
+        } catch (e) {}
+      }
+
+      // If we have coupleId, subscribe immediately
+      if (coupleId && !cancelled) {
         unsub = subscribeMessages(
-          me.coupleId,
+          coupleId,
           (msgs) => {
             if (!cancelled) {
               setMessages(msgs);
@@ -32,11 +39,36 @@ const ChatMedia = () => {
           },
           1000
         );
+      }
+
+      // Fetch from API in background to make sure we are accurate
+      try {
+        const me = await api.getMe();
+        if (cancelled) return;
+        
+        // If coupleId is different or wasn't set, re-subscribe
+        if (me?.coupleId && me.coupleId !== coupleId) {
+          if (unsub) unsub();
+          unsub = subscribeMessages(
+            me.coupleId,
+            (msgs) => {
+              if (!cancelled) {
+                setMessages(msgs);
+                setLoading(false);
+              }
+            },
+            1000
+          );
+        } else if (!me?.coupleId) {
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Failed loading chat media:', err);
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !coupleId) setLoading(false);
       }
-    })();
+    };
+
+    init();
 
     return () => {
       cancelled = true;
@@ -294,7 +326,22 @@ const ChatMedia = () => {
                       cursor: 'pointer'
                     }}
                   >
-                    <video src={video.url} muted playsInline preload="metadata" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover' }} />
+                    {video.url.includes('/video/upload/') ? (
+                      <img 
+                        src={video.url.replace(/\.[^/.]+$/, '.jpg').replace('/video/upload/', '/video/upload/w_350,h_350,c_limit,so_0/')} 
+                        loading="lazy"
+                        style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover' }} 
+                        alt=""
+                      />
+                    ) : (
+                      <video 
+                        src={video.url.includes('#t=') ? video.url : `${video.url}#t=0.1`} 
+                        muted 
+                        playsInline 
+                        preload="metadata" 
+                        style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover' }} 
+                      />
+                    )}
                     <div style={{ 
                       position: 'absolute', 
                       inset: 0, 

@@ -30,6 +30,7 @@ const AlbumDetail = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [availableAlbums, setAvailableAlbums] = useState([]);
   const longPressTimer = useRef(null);
   const justEnteredSelectionMode = useRef(false);
@@ -186,8 +187,14 @@ const AlbumDetail = () => {
     }
   };
 
-  const handleDeleteSelected = async () => {
-    if (!window.confirm(`Delete ${selectedPhotos.size} selected items?`)) return;
+  const handleDeleteSelected = () => {
+    if (selectedPhotos.size > 0) {
+      setShowDeleteConfirm(true);
+    }
+  };
+
+  const confirmDeleteSelected = async () => {
+    setShowDeleteConfirm(false);
     try {
       const ids = Array.from(selectedPhotos);
       await api.deletePhotos(albumId, ids, { unlockToken: getAlbumUnlockToken(albumId) });
@@ -367,15 +374,10 @@ const AlbumDetail = () => {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '16px', color: 'var(--text-sub)' }}>
-            {selectionMode ? (
+            {selectionMode && (
               <motion.div whileTap={{ scale: 0.9 }} onClick={() => { setSelectionMode(false); setSelectedPhotos(new Set()); }} style={{ cursor: 'pointer' }}>
                 <X size={24} />
               </motion.div>
-            ) : (
-              <>
-                <Share2 size={20} />
-                <MoreVertical size={20} />
-              </>
             )}
           </div>
         </div>
@@ -441,13 +443,22 @@ const AlbumDetail = () => {
                   )}
                   {photo.mediaType === 'video' || photo.img.match(/\.(mp4|webm|mov|avi|ogg)/i) || photo.img.includes('/video/upload/') ? (
                   <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                    <video 
-                      src={photo.img} 
-                      muted 
-                      playsInline 
-                      preload="metadata"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    />
+                    {photo.img.includes('/video/upload/') ? (
+                      <img 
+                        src={photo.img.replace(/\.[^/.]+$/, '.jpg').replace('/video/upload/', '/video/upload/w_350,h_350,c_limit,so_0/')} 
+                        loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        alt=""
+                      />
+                    ) : (
+                      <video 
+                        src={photo.img.includes('#t=') ? photo.img : `${photo.img}#t=0.1`} 
+                        muted 
+                        playsInline 
+                        preload="metadata"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    )}
                     <div style={{
                       position: 'absolute',
                       bottom: '8px',
@@ -589,7 +600,7 @@ const AlbumDetail = () => {
           onClick={handlePlusClick}
           style={{
             position: 'fixed',
-            bottom: '30px',
+            bottom: '60px',
             right: '30px',
             width: '56px',
             height: '56px',
@@ -743,6 +754,101 @@ const AlbumDetail = () => {
                     ))}
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 3000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            padding: '20px'
+          }}>
+            <div 
+              style={{ position: 'absolute', inset: 0 }} 
+              onClick={() => setShowDeleteConfirm(false)} 
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '340px',
+                backgroundColor: 'var(--card-bg)',
+                borderRadius: '24px',
+                padding: '24px',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                border: '1px solid var(--border-light)',
+                zIndex: 3001
+              }}
+            >
+              <h3 style={{ 
+                fontSize: '20px', 
+                fontWeight: 700, 
+                color: 'var(--text-main)', 
+                marginBottom: '12px',
+                textAlign: 'center'
+              }}>
+                Delete Items?
+              </h3>
+              <p style={{ 
+                fontSize: '15px', 
+                color: 'var(--text-sub)', 
+                lineHeight: '1.5',
+                marginBottom: '24px',
+                textAlign: 'center'
+              }}>
+                Are you sure you want to delete {selectedPhotos.size} selected item{selectedPhotos.size > 1 ? 's' : ''}? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setShowDeleteConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--chat-bg)',
+                    color: 'var(--text-main)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={confirmDeleteSelected}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ff4d4d, #ff3333)',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    boxShadow: '0 4px 12px rgba(255, 77, 77, 0.2)'
+                  }}
+                >
+                  Delete
+                </motion.button>
               </div>
             </motion.div>
           </div>

@@ -102,6 +102,7 @@ class ApiClient {
         this.setAccessToken(null);
         localStorage.removeItem('user');
         localStorage.removeItem('currentUser');
+        window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: null }));
         const err = new Error('Session expired. Please log in again.');
         err.code = 'UNAUTHORIZED';
         throw err;
@@ -161,6 +162,7 @@ class ApiClient {
     this.setAccessToken(data.accessToken);
     // Keep user snapshot + persisted access token for tab/browser restarts.
     localStorage.setItem('user', JSON.stringify(data.user));
+    window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: data.user }));
     return data.user;
   }
 
@@ -173,6 +175,7 @@ class ApiClient {
       // Legacy compatibility for screens that still read currentUser
       localStorage.removeItem('currentUser');
       localStorage.removeItem('accessToken');
+      window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: null }));
     }
   }
 
@@ -186,11 +189,14 @@ class ApiClient {
     return this.request('/users/me');
   }
 
-  updateMe(updates) {
-    return this.request('/users/me', {
+  async updateMe(updates) {
+    const user = await this.request('/users/me', {
       method: 'PUT',
       body: updates,
     });
+    localStorage.setItem('user', JSON.stringify(user));
+    window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: user }));
+    return user;
   }
 
   setPreferredTheme(preferredTheme) {

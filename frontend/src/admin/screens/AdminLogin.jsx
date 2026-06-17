@@ -38,6 +38,8 @@ const AdminLogin = () => {
 
       // Save user profile for legacy compatibility if needed
       const legacyUser = {
+        _id: user._id,
+        coupleId: user.coupleId,
         role: user.role,
         name: user.name,
         email: user.email,

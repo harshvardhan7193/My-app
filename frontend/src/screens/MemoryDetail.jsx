@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Heart, Calendar, Share2, Trash2 } from 'lucide-react';
 import api from '../utils/api';
@@ -10,6 +10,7 @@ const MemoryDetail = () => {
   const [memory, setMemory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const fetchMemory = async () => {
@@ -37,8 +38,12 @@ const MemoryDetail = () => {
     }
   };
 
-  const handleDeleteMemory = async () => {
-    if (!window.confirm('Are you sure you want to delete this memory?')) return;
+  const handleDeleteMemory = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteMemory = async () => {
+    setShowDeleteConfirm(false);
     try {
       await api.deleteMemory(id);
       navigate('/gallery', { replace: true });
@@ -260,6 +265,101 @@ const MemoryDetail = () => {
           </p>
         </motion.div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 3000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            padding: '20px'
+          }}>
+            <div 
+              style={{ position: 'absolute', inset: 0 }} 
+              onClick={() => setShowDeleteConfirm(false)} 
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '340px',
+                backgroundColor: 'var(--card-bg)',
+                borderRadius: '24px',
+                padding: '24px',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                border: '1px solid var(--border-light)',
+                zIndex: 3001
+              }}
+            >
+              <h3 style={{ 
+                fontSize: '20px', 
+                fontWeight: 700, 
+                color: 'var(--text-main)', 
+                marginBottom: '12px',
+                textAlign: 'center'
+              }}>
+                Delete Memory?
+              </h3>
+              <p style={{ 
+                fontSize: '15px', 
+                color: 'var(--text-sub)', 
+                lineHeight: '1.5',
+                marginBottom: '24px',
+                textAlign: 'center'
+              }}>
+                Are you sure you want to delete this memory permanently? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setShowDeleteConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--chat-bg)',
+                    color: 'var(--text-main)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={confirmDeleteMemory}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ff4d4d, #ff3333)',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    boxShadow: '0 4px 12px rgba(255, 77, 77, 0.2)'
+                  }}
+                >
+                  Delete
+                </motion.button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

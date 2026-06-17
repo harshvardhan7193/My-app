@@ -3,30 +3,65 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Image, MessageSquare, Calendar as CalendarIcon, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { subscribeMessages } from '../config/firebase';
+import api from '../utils/api';
 
 const BottomNav = () => {
   const location = useLocation();
-  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   useEffect(() => {
-    const saved = localStorage.getItem('currentUser');
-    if (!saved) return;
-    let user;
-    try { user = JSON.parse(saved); } catch { return; }
-    
-    if (!user?.coupleId) return;
+    let active = true;
+    let unsub = null;
 
-    const unsub = subscribeMessages(
-      user.coupleId,
-      (messages) => {
-        // Any message from the partner that isn't read
-        const unread = messages.some(msg => msg.sender !== String(user._id) && msg.status !== 'read');
-        setHasUnreadChat(unread);
-      },
-      15
-    );
+    const init = async () => {
+      let coupleId = null;
+      let myId = null;
 
-    return unsub;
+      // Try local storage 'user' or 'currentUser' first
+      const savedUser = localStorage.getItem('user') || localStorage.getItem('currentUser');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          coupleId = parsed.coupleId;
+          myId = parsed._id || parsed.id;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      // If missing, fetch from API
+      if (!coupleId || !myId) {
+        try {
+          const me = await api.getMe();
+          if (me) {
+            coupleId = me.coupleId;
+            myId = me._id;
+          }
+        } catch (e) {
+          console.error('[BottomNav] Failed to fetch current user profile:', e);
+        }
+      }
+
+      if (!coupleId || !myId || !active) return;
+
+      unsub = subscribeMessages(
+        coupleId,
+        (messages) => {
+          if (!active) return;
+          // Count unread messages sent by the partner
+          const count = messages.filter(msg => msg.sender !== String(myId) && msg.status !== 'read').length;
+          setUnreadChatCount(count);
+        },
+        50
+      );
+    };
+
+    init();
+
+    return () => {
+      active = false;
+      if (unsub) unsub();
+    };
   }, []);
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
@@ -93,21 +128,33 @@ const BottomNav = () => {
                       strokeWidth={active ? 2.5 : 2}
                       style={{ marginBottom: '4px' }}
                     />
-                    {item.path === '/chat' && hasUnreadChat && !active && (
+                    {item.path === '/chat' && unreadChatCount > 0 && (
                       <motion.div
-                        animate={{ opacity: [1, 0, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        key={unreadChatCount}
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: [1.3, 0.9, 1], opacity: 1 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 15 }}
                         style={{
                           position: 'absolute',
-                          top: '-2px',
-                          right: '-4px',
-                          width: '8px',
-                          height: '8px',
-                          backgroundColor: 'var(--blush-pink)',
-                          borderRadius: '50%',
-                          border: '2px solid var(--card-bg)'
+                          top: '-6px',
+                          right: '-10px',
+                          minWidth: '18px',
+                          height: '18px',
+                          borderRadius: '9px',
+                          backgroundColor: '#ff4d62',
+                          color: 'white',
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0 4px',
+                          border: '2px solid var(--card-bg)',
+                          boxShadow: '0 2px 8px rgba(255, 77, 98, 0.35)'
                         }}
-                      />
+                      >
+                        {unreadChatCount}
+                      </motion.div>
                     )}
                   </div>
                   <span style={{ fontSize: '10px', fontWeight: active ? 600 : 400, fontFamily: 'var(--font-main)' }}>

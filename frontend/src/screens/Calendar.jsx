@@ -130,6 +130,22 @@ const Calendar = () => {
     return calendarDays;
   };
 
+  const getUpcomingEvents = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return events
+      .filter(e => {
+        const eventDate = new Date(e.date);
+        const eventMidnight = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+        return eventMidnight >= today;
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 3);
+  };
+
+  const upcomingEvents = getUpcomingEvents();
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -266,6 +282,109 @@ const Calendar = () => {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Upcoming Plans Section */}
+      <div style={{ marginTop: '40px', marginBottom: '20px' }}>
+        <h4 style={{ fontSize: '18px', marginBottom: '16px', color: 'var(--text-main)' }}>Upcoming Plans</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {upcomingEvents.length > 0 ? (
+            upcomingEvents.map((event) => {
+              const eventDate = new Date(event.date);
+              const day = eventDate.getDate();
+              const monthAbbrev = eventDate.toLocaleString('default', { month: 'short' }).toUpperCase();
+              
+              return (
+                <motion.div
+                  key={event._id || event.id}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setSelectedDate(eventDate);
+                    setCurrentDate(eventDate);
+                  }}
+                  className="premium-card"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    padding: '16px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {/* Calendar style date badge */}
+                  <div style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '16px',
+                    backgroundColor: 'var(--card-accent-purple)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: 'var(--text-sub)',
+                      letterSpacing: '0.05em',
+                      lineHeight: '1.2'
+                    }}>
+                      {monthAbbrev}
+                    </span>
+                    <span style={{
+                      fontSize: '20px',
+                      fontWeight: 800,
+                      color: 'var(--text-main)',
+                      lineHeight: '1.1'
+                    }}>
+                      {day}
+                    </span>
+                  </div>
+                  
+                  {/* Event Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontSize: '15px',
+                      fontWeight: 600,
+                      color: 'var(--text-main)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      marginBottom: '4px'
+                    }}>
+                      {event.title}
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {event.time && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-sub)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={12} /> {event.time}
+                        </span>
+                      )}
+                      {event.location && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-sub)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <MapPin size={12} /> {event.location}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })
+          ) : (
+            <div
+              className="premium-card"
+              style={{
+                padding: '24px',
+                textAlign: 'center',
+                color: 'var(--text-sub)',
+                border: '2px dashed var(--dusty-rose)'
+              }}
+            >
+              <p style={{ fontSize: '14px' }}>No upcoming plans scheduled.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add Event Modal */}

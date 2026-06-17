@@ -27,6 +27,7 @@ import NotificationCenter from './screens/NotificationCenter';
 import BottomNav from './components/BottomNav';
 import RouteLocker from './components/RouteLocker';
 import RoutePersister from './components/RoutePersister';
+import ShareIntentListener from './components/ShareIntentListener';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/screens/AdminDashboard';
 import UserManagement from './admin/screens/UserManagement';
@@ -131,6 +132,19 @@ if (typeof window !== 'undefined' && !window.__didRestoreRoute) {
   }
 }
 
+const PathTracker = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    if (window.flutter_inappwebview) {
+      window.flutter_inappwebview.callHandler('currentPathChanged', location.pathname)
+        .catch(err => console.error('Failed to notify path change:', err));
+    }
+  }, [location.pathname]);
+
+  return null;
+};
+
 const App = () => {
   const [bootstrapped, setBootstrapped] = useState(false);
   const [preferredTheme, setPreferredTheme] = useState('light');
@@ -160,6 +174,18 @@ const App = () => {
       media?.removeEventListener?.('change', onSystemThemeChange);
     };
   }, [preferredTheme]);
+
+  // Listen for login/logout/profile update events to reactively change the theme.
+  useEffect(() => {
+    const handleAuthUserChange = (e) => {
+      const user = e.detail;
+      setPreferredTheme(user?.preferredTheme || 'light');
+    };
+    window.addEventListener('auth-user-changed', handleAuthUserChange);
+    return () => {
+      window.removeEventListener('auth-user-changed', handleAuthUserChange);
+    };
+  }, []);
 
   // On boot, prefer stored access token, then fallback to refresh cookie.
   useEffect(() => {
@@ -246,8 +272,10 @@ const App = () => {
     <AppErrorBoundary>
       <Router>
         <NotificationToastProvider>
+          <PathTracker />
           <RouteLocker />
           <RoutePersister />
+          <ShareIntentListener />
           <AnimatePresence mode="wait">
             <Routes>
               {/* Consumer Routes (Fixed Width Mobile Container) */}

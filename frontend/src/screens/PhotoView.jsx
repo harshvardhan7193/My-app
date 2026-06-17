@@ -444,7 +444,7 @@ const PhotoView = () => {
         top: 0, 
         left: 0, 
         right: 0, 
-        padding: '24px', 
+        padding: 'calc(max(env(safe-area-inset-top, 0px), 16px) + 12px) 24px 24px 24px', 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
@@ -568,7 +568,7 @@ const PhotoView = () => {
                        exit={{ opacity: 0, y: 20 }}
                        style={{
                          position: 'absolute',
-                         bottom: '145px', 
+                         bottom: 'calc(max(env(safe-area-inset-bottom, 0px), 24px) + 125px)', 
                          left: '20px',
                          right: '20px',
                          backgroundColor: 'rgba(0, 0, 0, 0.45)',
@@ -718,7 +718,7 @@ const PhotoView = () => {
         bottom: 0, 
         left: 0, 
         right: 0, 
-        padding: '40px 24px', 
+        padding: '24px 24px calc(max(env(safe-area-inset-bottom, 0px), 24px) + 32px) 24px', 
         display: 'flex', 
         justifyContent: 'center', 
         gap: '40px',

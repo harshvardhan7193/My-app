@@ -344,7 +344,14 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
         {highlights.map((hl) => (
           <div key={hl._id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
             <div 
-              onClick={() => setStoryPlayer({ isOpen: true, stories: hl.stories, startIndex: 0, title: hl.title })}
+              onClick={() => {
+                const validStories = (hl.stories || []).filter(Boolean);
+                if (validStories.length > 0) {
+                  setStoryPlayer({ isOpen: true, stories: validStories, startIndex: 0, title: hl.title });
+                } else {
+                  alert('This highlight has no stories. The stories in it expired or were deleted before index synchronization.');
+                }
+              }}
               style={{
                 width: '68px',
                 height: '68px',

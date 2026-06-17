@@ -31,6 +31,8 @@ const Login = () => {
 
       // Save user profile for partner UI compatibility
       const legacyUser = {
+        _id: user._id,
+        coupleId: user.coupleId,
         role: user.role,
         name: user.name,
         email: user.email,

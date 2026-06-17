@@ -39,6 +39,13 @@ export const useNotifications = (isAuthenticated) => {
   useEffect(() => {
     const unsubscribe = onForegroundMessage((payload) => {
       console.log('Received foreground message:', payload);
+      
+      const isChatUrl = payload.data?.url === '/chat';
+      const isOnChatPage = window.location.pathname === '/chat';
+      if (isOnChatPage && isChatUrl) {
+        return;
+      }
+
       if (Notification.permission === 'granted' && payload.notification) {
         new Notification(payload.notification.title, {
           body: payload.notification.body,

@@ -3,7 +3,7 @@ import {
   getDatabase,
   ref as dbRef,
   query as dbQuery,
-  orderByChild,
+  orderByKey,
   limitToLast,
   onValue,
   push as dbPush,
@@ -98,7 +98,7 @@ const messagesRef = (coupleId) => dbRef(db, `chats/${coupleId}/messages`);
 export const subscribeMessages = (coupleId, cb, limit = 20) => {
   const q = dbQuery(
     messagesRef(coupleId),
-    orderByChild("createdAt"),
+    orderByKey(),
     limitToLast(limit),
   );
   const unsub = onValue(q, (snapshot) => {
@@ -107,7 +107,12 @@ export const subscribeMessages = (coupleId, cb, limit = 20) => {
       list.push({ id: child.key, ...child.val() });
     });
     // RTDB returns in query order but inserts via push() may race; sort defensively.
-    list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    // Fall back to current client timestamp (Date.now()) if serverTimestamp hasn't resolved yet
+    list.sort((a, b) => {
+      const timeA = typeof a.createdAt === 'number' ? a.createdAt : Date.now();
+      const timeB = typeof b.createdAt === 'number' ? b.createdAt : Date.now();
+      return timeA - timeB;
+    });
     cb(list);
   });
   return unsub;
@@ -137,7 +142,11 @@ export const searchAllMessages = async (coupleId, searchText) => {
   snapshot.forEach((child) => {
     list.push({ id: child.key, ...child.val() });
   });
-  list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  list.sort((a, b) => {
+    const timeA = typeof a.createdAt === 'number' ? a.createdAt : Date.now();
+    const timeB = typeof b.createdAt === 'number' ? b.createdAt : Date.now();
+    return timeA - timeB;
+  });
 
   const matches = [];
   const lowerSearch = searchText.toLowerCase();

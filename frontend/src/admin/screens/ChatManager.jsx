@@ -153,7 +153,21 @@ const ChatManager = () => {
                       ) : type === 'video' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{ width: '40px', height: '40px', borderRadius: '8px', overflow: 'hidden', position: 'relative', backgroundColor: '#000' }}>
-                            <video src={msg.mediaUrl} preload="metadata" muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {msg.mediaUrl.includes('/video/upload/') ? (
+                              <img 
+                                src={msg.mediaUrl.replace(/\.[^/.]+$/, '.jpg').replace('/video/upload/', '/video/upload/w_150,h_150,c_limit,so_0/')} 
+                                loading="lazy"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                alt=""
+                              />
+                            ) : (
+                              <video 
+                                src={msg.mediaUrl.includes('#t=') ? msg.mediaUrl : `${msg.mediaUrl}#t=0.1`} 
+                                preload="metadata" 
+                                muted 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                            )}
                             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                               <VideoIcon size={16} />
                             </div>

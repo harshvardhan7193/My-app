@@ -11,8 +11,41 @@ const Chat = () => {
   const navigate = useNavigate();
 
   // Identity / partner — loaded from the backend, with a localStorage fallback for display while loading
-  const [me, setMe] = useState(null);
-  const [partner, setPartner] = useState(null);
+  const [me, setMe] = useState(() => {
+    const saved = localStorage.getItem('user') || localStorage.getItem('currentUser');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.coupleId && (parsed._id || parsed.id)) {
+          return parsed;
+        }
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  const [partner, setPartner] = useState(() => {
+    const saved = localStorage.getItem('partner');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    const savedMe = localStorage.getItem('currentUser');
+    if (savedMe) {
+      try {
+        const parsedMe = JSON.parse(savedMe);
+        if (parsedMe.partnerName) {
+          return {
+            name: parsedMe.partnerName,
+            avatar: parsedMe.partnerAvatar,
+          };
+        }
+      } catch (e) {}
+    }
+    return null;
+  });
+
   const user = React.useMemo(() => {
     const saved = localStorage.getItem('currentUser');
     if (saved) {
@@ -106,10 +139,25 @@ const Chat = () => {
       return;
     }
 
-    // After initial open, keep normal smooth scrolling behavior for newly
-    // arrived messages at the bottom.
-    scrollToBottom('smooth');
-  }, [messages]);
+    const lastMsg = messages[messages.length - 1];
+    const sentByMe = lastMsg?.sender === String(me?._id);
+
+    // If sent by me, snap to bottom instantly for immediate light-speed feedback
+    if (sentByMe) {
+      scrollToBottom('auto');
+    } else {
+      // If received from partner, only scroll if user is already near the bottom
+      const container = scrollContainerRef.current;
+      if (container) {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 350;
+        if (isNearBottom) {
+          scrollToBottom('smooth');
+        }
+      } else {
+        scrollToBottom('smooth');
+      }
+    }
+  }, [messages, me?._id]);
 
   // Triggered when the user scrolls near the top of the message list — bump
   // the live window by another page so older history streams in.
@@ -160,14 +208,124 @@ const Chat = () => {
           api.getPartner().catch(() => null),
         ]);
         if (cancelled) return;
-        setMe(meData);
-        setPartner(partnerData);
+        
+        if (meData) {
+          setMe(meData);
+          localStorage.setItem('user', JSON.stringify(meData));
+          
+          // Keep legacy currentUser in sync
+          const savedMe = localStorage.getItem('currentUser');
+          if (savedMe) {
+            try {
+              const parsed = JSON.parse(savedMe);
+              parsed._id = meData._id;
+              parsed.coupleId = meData.coupleId;
+              parsed.name = meData.name;
+              parsed.avatar = meData.avatar;
+              localStorage.setItem('currentUser', JSON.stringify(parsed));
+            } catch (e) {}
+          }
+        }
+        
+        if (partnerData) {
+          setPartner(partnerData);
+          localStorage.setItem('partner', JSON.stringify(partnerData));
+        }
       } catch (err) {
         console.error('Chat bootstrap failed:', err);
       }
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Check for shared media from outside apps (Android Gallery Share Intent)
+  useEffect(() => {
+    if (!me?._id || !me?.coupleId) return;
+
+    const checkSharedMedia = async () => {
+      if (window.flutter_inappwebview) {
+        try {
+          const files = await window.flutter_inappwebview.callHandler('getPendingSharedMedia');
+          if (files && files.length > 0) {
+            for (const fileData of files) {
+              try {
+                // fileData is: { name, mimeType, size, dataUrl }
+                // Convert dataUrl back to a JS File/Blob object
+                const res = await fetch(fileData.dataUrl);
+                const blob = await res.blob();
+                const file = new File([blob], fileData.name, { type: fileData.mimeType });
+                
+                // Upload and send!
+                const mimeType = fileData.mimeType || '';
+                const isImage = mimeType.startsWith('image/');
+                const isVideo = mimeType.startsWith('video/');
+                const isAudio = mimeType.startsWith('audio/');
+                const messageType = isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'file';
+                const mediaKindLabel = isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'file';
+
+                setUploadingLabel(`Uploading shared ${mediaKindLabel}...`);
+                setUploadProgress(5);
+                triggerToast(`Uploading shared ${mediaKindLabel}...`);
+
+                const uploadRes = await api.uploadFileWithProgress(file, (percentage) => {
+                  setUploadProgress((prev) => {
+                    const floor = typeof prev === 'number' ? prev : 5;
+                    return Math.max(floor, Math.min(95, percentage));
+                  });
+                });
+
+                setUploadingLabel('Sending message...');
+                setUploadProgress(97);
+
+                const payload = {
+                  type: messageType,
+                  mediaUrl: uploadRes.url,
+                  mediaPublicId: uploadRes.publicId,
+                  mediaMimeType: uploadRes.mimeType || mimeType,
+                  mediaName: uploadRes.originalFilename || file.name,
+                  mediaSize: uploadRes.size || file.size,
+                  mediaFormat: uploadRes.format,
+                  mediaResourceType: uploadRes.resourceType,
+                  sender: String(me._id),
+                };
+
+                const msgId = await pushMessage(me.coupleId, payload);
+                api.logActivity('Sent a message', 'chat').catch(() => {});
+                if (partner?._id) {
+                  api.sendChatNotification({
+                    recipientId: String(partner._id),
+                    messagePreview: `Sent a photo/file: ${mediaKindLabel}`,
+                    messageId: msgId
+                  }).catch((err) => console.error('Failed to send chat push notification:', err));
+                }
+
+                setUploadProgress(100);
+                setTimeout(() => {
+                  setUploadProgress(null);
+                  setUploadingLabel('');
+                }, 250);
+              } catch (err) {
+                console.error('Failed to process and upload shared file:', err);
+                setUploadProgress(null);
+                setUploadingLabel('');
+                triggerToast('Upload failed');
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to check pending shared media:', err);
+        }
+      }
+    };
+
+    // Check immediately on load/mount when `me` is ready
+    checkSharedMedia();
+
+    window.addEventListener('shared-media-received', checkSharedMedia);
+    return () => {
+      window.removeEventListener('shared-media-received', checkSharedMedia);
+    };
+  }, [me, partner]);
 
   // Subscribe to the live message stream with a growing window. Re-subscribing
   // when `messageLimit` increases pulls in older history while still keeping
@@ -220,14 +378,20 @@ const Chat = () => {
         setReplyToMsg(null);
       }
       const msgId = pushMessage(me.coupleId, payload);
-      api.logActivity('Sent a message', 'chat').catch(() => {});
-      if (partner?._id) {
-        api.sendChatNotification({
-          recipientId: String(partner._id),
-          messagePreview: text,
-          messageId: msgId
-        }).catch((err) => console.error('Failed to send chat push notification:', err));
-      }
+      
+      // Defer secondary background HTTP requests (logging & notifications) by 100ms
+      // to keep the main event loop and WebView network channel 100% focused on
+      // immediate UI rendering and Firebase write execution.
+      setTimeout(() => {
+        api.logActivity('Sent a message', 'chat').catch(() => {});
+        if (partner?._id) {
+          api.sendChatNotification({
+            recipientId: String(partner._id),
+            messagePreview: text,
+            messageId: msgId
+          }).catch((err) => console.error('Failed to send chat push notification:', err));
+        }
+      }, 100);
     } catch (err) {
       console.error('Failed to send message:', err);
       setInputText(text);
@@ -236,6 +400,7 @@ const Chat = () => {
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleSendMessage();
     }
   };

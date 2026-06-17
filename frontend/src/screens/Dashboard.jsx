@@ -306,8 +306,6 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-
-
       {/* Recent Memories Section */}
       {recentMemories.length > 0 && (
         <motion.div variants={itemVariants}>
