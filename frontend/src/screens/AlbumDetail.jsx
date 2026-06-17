@@ -640,7 +640,7 @@ const AlbumDetail = () => {
               justifyContent: 'space-around',
               backdropFilter: 'blur(10px)',
               zIndex: 1100,
-              paddingBottom: 'env(safe-area-inset-bottom, 16px)'
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 24px)'
             }}
           >
             <button

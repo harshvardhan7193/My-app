@@ -379,6 +379,16 @@ const Chat = () => {
       }
       const msgId = pushMessage(me.coupleId, payload);
       
+      // Optimistic UI Update: Instantly append the message to the screen
+      // so there is zero perceived delay while Firebase processes the write.
+      const optimisticMsg = {
+        id: msgId,
+        ...payload,
+        createdAt: Date.now(),
+        status: 'sending'
+      };
+      setMessages(prev => [...prev.filter(m => m.id !== msgId), optimisticMsg]);
+      
       // Defer secondary background HTTP requests (logging & notifications) by 100ms
       // to keep the main event loop and WebView network channel 100% focused on
       // immediate UI rendering and Firebase write execution.
@@ -443,12 +453,22 @@ const Chat = () => {
     if (!me?.coupleId) return;
     triggerHeartAnimation();
     try {
-      const msgId = pushMessage(me.coupleId, {
+      const payload = {
         text: '❤️',
         sender: String(me._id),
         type: 'text',
-      });
-      api.logActivity('Sent a message', 'chat').catch(() => {});
+      };
+      const msgId = pushMessage(me.coupleId, payload);
+      
+      // Optimistic UI Update for heart
+      const optimisticMsg = {
+        id: msgId,
+        ...payload,
+        createdAt: Date.now(),
+        status: 'sending'
+      };
+      setMessages(prev => [...prev.filter(m => m.id !== msgId), optimisticMsg]);
+            api.logActivity('Sent a message', 'chat').catch(() => {});
       if (partner?._id) {
         api.sendChatNotification({
           recipientId: String(partner._id),
@@ -822,9 +842,9 @@ const Chat = () => {
                 )}
                 <motion.div
                   id={`msg-${msg.id}`}
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  initial={msg.status === 'sending' ? { opacity: 0, y: 8, scale: 0.96 } : false}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
                   style={{
                     display: 'flex',
                     justifyContent: isMine ? 'flex-end' : 'flex-start',

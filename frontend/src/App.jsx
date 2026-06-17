@@ -136,10 +136,22 @@ const PathTracker = () => {
   const location = useLocation();
   
   useEffect(() => {
+    const notifyPath = () => {
+      if (window.flutter_inappwebview) {
+        window.flutter_inappwebview.callHandler('currentPathChanged', location.pathname)
+          .catch(err => console.error('Failed to notify path change:', err));
+      }
+    };
+
     if (window.flutter_inappwebview) {
-      window.flutter_inappwebview.callHandler('currentPathChanged', location.pathname)
-        .catch(err => console.error('Failed to notify path change:', err));
+      notifyPath();
+    } else {
+      window.addEventListener('flutterInAppWebViewPlatformReady', notifyPath);
     }
+
+    return () => {
+      window.removeEventListener('flutterInAppWebViewPlatformReady', notifyPath);
+    };
   }, [location.pathname]);
 
   return null;

@@ -11,6 +11,7 @@ import {
   update as dbUpdate,
   serverTimestamp,
   get,
+  set as dbSet,
 } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
@@ -121,7 +122,7 @@ export const subscribeMessages = (coupleId, cb, limit = 20) => {
 /** Push a new message onto a couple's chat. Returns the new RTDB key immediately. */
 export const pushMessage = (coupleId, message) => {
   const newRef = dbPush(messagesRef(coupleId));
-  dbUpdate(newRef, {
+  dbSet(newRef, {
     ...message,
     status: 'sent',
     createdAt: serverTimestamp(),
