@@ -26,7 +26,10 @@ export const createHighlight = asyncHandler(async (req, res) => {
     populate: { path: 'user', select: 'name avatar role' }
   });
 
-  res.status(201).json(populated);
+  const doc = populated.toObject();
+  doc.stories = (doc.stories || []).filter(s => s !== null);
+
+  res.status(201).json(doc);
 });
 
 // @desc    Get all highlights for the couple
@@ -40,7 +43,13 @@ export const getHighlights = asyncHandler(async (req, res) => {
     })
     .sort({ createdAt: -1 });
 
-  res.json(highlights);
+  const cleanedHighlights = highlights.map(hl => {
+    const doc = hl.toObject();
+    doc.stories = (doc.stories || []).filter(s => s !== null);
+    return doc;
+  });
+
+  res.json(cleanedHighlights);
 });
 
 // @desc    Update a highlight (add/remove stories, change cover/title)
@@ -73,7 +82,10 @@ export const updateHighlight = asyncHandler(async (req, res) => {
     populate: { path: 'user', select: 'name avatar role' }
   });
 
-  res.json(populated);
+  const doc = populated.toObject();
+  doc.stories = (doc.stories || []).filter(s => s !== null);
+
+  res.json(doc);
 });
 
 // @desc    Delete a highlight

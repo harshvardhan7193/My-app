@@ -14,7 +14,6 @@ const storySchema = new mongoose.Schema({
 storySchema.index({ coupleId: 1, expiresAt: 1 });
 storySchema.index({ coupleId: 1, createdAt: -1 });
 
-// TTL index — MongoDB deletes documents when expiresAt < now (checked roughly every 60s)
-storySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 
 export default mongoose.model('Story', storySchema);
