@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { X, Download, Share2, Heart, Info, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import api from '../utils/api';
 import { getAlbumUnlockToken } from '../utils/vaultStore';
 
@@ -24,6 +25,7 @@ const PhotoView = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [isZoomed, setIsZoomed] = useState(false);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -492,7 +494,9 @@ const PhotoView = () => {
                    overflow: 'hidden'
                  }}
                >
-                 <video 
+              <TransformWrapper onTransformed={(ref) => setIsZoomed(ref.state.scale > 1.05)} disabled={false}>
+                <TransformComponent wrapperStyle={{ width: '100%', height: '100%', zIndex: 2 }} contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                 <motion.video 
                    ref={videoRef}
                    src={imageUrl}
                    autoPlay
@@ -500,33 +504,27 @@ const PhotoView = () => {
                    playsInline
                    onTimeUpdate={handleTimeUpdate}
                    onLoadedMetadata={handleLoadedMetadata}
-                   onClick={togglePlayPause}
+                   onTap={(e) => {
+                     // If clicking directly on the video, toggle controls
+                     handleContainerTap();
+                   }}
+                   drag={!isZoomed ? "x" : false}
+                   dragConstraints={{ left: 0, right: 0 }}
+                   dragElastic={0.6}
+                   onDragEnd={handleDragEnd}
+                   whileDrag={!isZoomed ? { scale: 0.96 } : {}}
                    style={{ 
                      maxWidth: '100%', 
                      maxHeight: '80vh', 
                      objectFit: 'contain',
                      boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
                      outline: 'none',
-                     cursor: 'pointer',
-                     zIndex: 2
+                     cursor: isZoomed ? 'grab' : 'pointer',
+                     touchAction: 'none'
                    }} 
                  />
-
-                 {/* Tap / Swipe overlay captures gestures */}
-                 <motion.div 
-                   drag="x"
-                   dragConstraints={{ left: 0, right: 0 }}
-                   dragElastic={0.6}
-                   onDragEnd={handleDragEnd}
-                   onTap={handleContainerTap}
-                   style={{ 
-                     position: 'absolute',
-                     inset: 0,
-                     zIndex: 3,
-                     cursor: 'pointer',
-                     touchAction: 'none'
-                   }}
-                 />
+                </TransformComponent>
+              </TransformWrapper>
 
                  {/* Premium Glass Center Play Overlay */}
                  <AnimatePresence>
@@ -681,30 +679,33 @@ const PhotoView = () => {
                  </AnimatePresence>
                </motion.div>
             ) : (
-              <motion.img 
-                key={id}
-                custom={swipeDirection}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                src={imageUrl}
-                onDoubleClick={handleToggleLike}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.6}
-                onDragEnd={handleDragEnd}
-                whileDrag={{ scale: 0.96 }}
-                style={{ 
-                  position: 'absolute',
-                  maxWidth: '100%', 
-                  maxHeight: '80vh', 
-                  objectFit: 'contain',
-                  boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-                  cursor: 'grab',
-                  touchAction: 'none'
-                }} 
-              />
+              <TransformWrapper onTransformed={(ref) => setIsZoomed(ref.state.scale > 1.05)} disabled={false}>
+                <TransformComponent wrapperStyle={{ width: '100%', height: '100%', zIndex: 2 }} contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <motion.img 
+                    key={id}
+                    custom={swipeDirection}
+                    variants={slideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    src={imageUrl}
+                    onDoubleClick={handleToggleLike}
+                    drag={!isZoomed ? "x" : false}
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.6}
+                    onDragEnd={handleDragEnd}
+                    whileDrag={!isZoomed ? { scale: 0.96 } : {}}
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: '80vh', 
+                      objectFit: 'contain',
+                      boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                      cursor: isZoomed ? 'grab' : 'grab',
+                      touchAction: 'none'
+                    }} 
+                  />
+                </TransformComponent>
+              </TransformWrapper>
             )
           ) : (
             <span style={{ color: 'white' }}>No image found</span>
