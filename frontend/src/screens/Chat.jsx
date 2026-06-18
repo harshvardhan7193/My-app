@@ -722,7 +722,7 @@ const Chat = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       style={{
-        height: '100vh',
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'transparent',
