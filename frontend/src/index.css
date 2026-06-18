@@ -123,6 +123,9 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: hidden; /* Prevent body from scrolling which causes jumps when keyboard opens */
+  position: fixed;
+  width: 100%;
+  touch-action: none;
 }
 
 body {

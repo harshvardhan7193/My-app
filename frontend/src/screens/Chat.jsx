@@ -99,9 +99,19 @@ const Chat = () => {
         }
         return prev;
       });
+      // Ensure messages stay visible when keyboard slides up
+      // The setTimeout ensures the DOM has updated its layout height
+      setTimeout(() => scrollToBottom('auto'), 50);
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    // Also listen to visualViewport for higher frequency updates during slide
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => scrollToBottom('auto'));
+    }
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (window.visualViewport) window.visualViewport.removeEventListener('resize', () => scrollToBottom('auto'));
+    };
   }, []);
 
   const messagesEndRef = useRef(null);
