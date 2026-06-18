@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Camera, Image as ImageIcon, Play, FileText, Music2, Download, ExternalLink, Reply, Check, CheckCheck, Copy, Info } from 'lucide-react';
+import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Camera, Image as ImageIcon, Play, FileText, Music2, Download, ExternalLink, Reply, Check, CheckCheck, Copy, Info, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus } from '../config/firebase';
+import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
 import chatBgDark from '../assets/images/chat background/theme1 dark.png';
 
@@ -75,6 +75,7 @@ const Chat = () => {
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [replyToMsg, setReplyToMsg] = useState(null);
+  const [editingMsg, setEditingMsg] = useState(null);
   const [floatingHearts, setFloatingHearts] = useState([]);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [longPressedMsg, setLongPressedMsg] = useState(null);
@@ -83,6 +84,26 @@ const Chat = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     typeof document !== 'undefined' && document.body.classList.contains('dark-mode')
   );
+  const [bgSize, setBgSize] = useState({ 
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+    width: typeof window !== 'undefined' ? window.innerWidth : 400
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setBgSize(prev => {
+        // Only update if width changes to ignore keyboard opening which only changes height
+        if (prev.width !== window.innerWidth) {
+          return { height: window.innerHeight, width: window.innerWidth };
+        }
+        return prev;
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -371,6 +392,12 @@ const Chat = () => {
         sender: String(me._id),
         type: 'text',
       };
+      if (editingMsg) {
+        editMessageText(me.coupleId, editingMsg.id, text);
+        setMessages(prev => prev.map(m => m.id === editingMsg.id ? { ...m, text, isEdited: true } : m));
+        setEditingMsg(null);
+        return;
+      }
       if (replyToMsg) {
         payload.replyToId = replyToMsg.id;
         payload.replyToText = replyToMsg.text || (replyToMsg.type === 'image' ? '📷 Photo' : (replyToMsg.type === 'video' ? '🎥 Video' : (replyToMsg.type === 'audio' ? '🎵 Audio' : '📁 File')));
@@ -709,7 +736,7 @@ const Chat = () => {
         top: 0,
         left: 0,
         width: '100vw',
-        height: '100vh',
+        height: `${bgSize.height}px`,
         backgroundImage: `linear-gradient(${isDarkMode ? 'rgba(0,0,0,0.45), rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.25), rgba(255,255,255,0.25)'}), url("${isDarkMode ? chatBgDark : chatBgLight}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -1063,7 +1090,10 @@ const Chat = () => {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                        <p style={{ fontSize: '15px', margin: 0, wordBreak: 'break-word', lineHeight: 1.3 }}>{msg.text}</p>
+                        <p style={{ fontSize: '15px', margin: 0, wordBreak: 'break-word', lineHeight: 1.3 }}>
+                          {msg.text}
+                          {msg.isEdited && <span style={{ fontSize: '10px', opacity: 0.6, marginLeft: '6px', fontStyle: 'italic' }}>(edited)</span>}
+                        </p>
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -1093,7 +1123,7 @@ const Chat = () => {
       {/* Input Area */}
       <div style={{ padding: '0px 20px 24px 20px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
         <AnimatePresence>
-          {replyToMsg && (
+          {(replyToMsg || editingMsg) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -1114,13 +1144,13 @@ const Chat = () => {
             >
               <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1, borderLeft: '4px solid var(--blush-pink)', paddingLeft: '10px' }}>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--blush-pink)' }}>
-                  Replying to {replyToMsg.sender === String(me._id) ? 'You' : (partner?.name || 'Partner')}
+                  {editingMsg ? 'Editing Message' : `Replying to ${replyToMsg?.sender === String(me._id) ? 'You' : (partner?.name || 'Partner')}`}
                 </span>
                 <span style={{ fontSize: '13px', color: 'var(--text-sub)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {replyToMsg.text || (replyToMsg.type === 'image' ? '📷 Photo' : (replyToMsg.type === 'video' ? '🎥 Video' : (replyToMsg.type === 'audio' ? '🎵 Audio' : '📁 File')))}
+                  {editingMsg ? editingMsg.text : (replyToMsg?.text || (replyToMsg?.type === 'image' ? '📷 Photo' : (replyToMsg?.type === 'video' ? '🎥 Video' : (replyToMsg?.type === 'audio' ? '🎵 Audio' : '📁 File'))))}
                 </span>
               </div>
-              <X size={20} color="var(--text-sub)" style={{ cursor: 'pointer', padding: '4px' }} onClick={() => setReplyToMsg(null)} />
+              <X size={20} color="var(--text-sub)" style={{ cursor: 'pointer', padding: '4px' }} onClick={() => { setReplyToMsg(null); setEditingMsg(null); setInputText(''); }} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1515,6 +1545,22 @@ const Chat = () => {
                 </div>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>Reply</span>
               </div>
+              {longPressedMsg.sender === String(me?._id) && Date.now() - (typeof longPressedMsg.createdAt === 'number' ? longPressedMsg.createdAt : Date.now()) <= 30 * 60 * 1000 && longPressedMsg.type === 'text' && (
+                <div 
+                  onClick={() => {
+                    setEditingMsg(longPressedMsg);
+                    setInputText(longPressedMsg.text);
+                    setLongPressedMsg(null);
+                    setTimeout(() => textInputRef.current?.focus(), 100);
+                  }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                >
+                  <div style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Edit2 size={22} color="#f59e0b" />
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>Edit</span>
+                </div>
+              )}
               <div 
                 onClick={() => {
                   navigator.clipboard.writeText(longPressedMsg.text || '');

@@ -172,4 +172,9 @@ export const updateMessageStatus = (coupleId, messageId, status) => {
   return dbUpdate(dbRef(db, `chats/${coupleId}/messages/${messageId}`), updates);
 };
 
+/** Edit the text of a specific message */
+export const editMessageText = (coupleId, messageId, newText) => {
+  return dbUpdate(dbRef(db, `chats/${coupleId}/messages/${messageId}`), { text: newText, isEdited: true });
+};
+
 export default app;
