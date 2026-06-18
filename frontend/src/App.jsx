@@ -1,4 +1,4 @@
-import { useEffect, useState, Component } from 'react';
+import { useEffect, useState, Component, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import api from './utils/api';
@@ -354,11 +354,44 @@ const App = () => {
   );
 };
 
-const MobileContainer = () => (
-  <div className="mobile-container">
-    <Outlet />
-  </div>
-);
+const MobileContainer = () => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const viewport = window.visualViewport;
+    
+    const updateHeight = () => {
+      if (containerRef.current) {
+        // Use visualViewport height to get the exact smooth pixel height
+        // excluding the sliding keyboard, frame-by-frame
+        containerRef.current.style.height = `${viewport.height}px`;
+        
+        // Prevent body scroll offsets that could cause jumps
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+      }
+    };
+
+    viewport.addEventListener('resize', updateHeight);
+    viewport.addEventListener('scroll', updateHeight);
+    
+    // Set initial
+    updateHeight();
+
+    return () => {
+      viewport.removeEventListener('resize', updateHeight);
+      viewport.removeEventListener('scroll', updateHeight);
+    };
+  }, []);
+
+  return (
+    <div className="mobile-container" ref={containerRef} style={{ height: '100%' }}>
+      <Outlet />
+    </div>
+  );
+};
 
 // Guards consumer routes. Without an access token we have no way to talk to the
 // API, so bounce to /login instead of rendering screens that will silently 401
