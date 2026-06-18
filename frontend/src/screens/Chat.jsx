@@ -722,10 +722,10 @@ const Chat = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       style={{
-        height: '100dvh',
+        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: 'var(--chat-bg)',
+        backgroundColor: 'transparent',
         overflow: 'hidden',
         position: 'relative'
       }}
@@ -737,6 +737,7 @@ const Chat = () => {
         left: 0,
         width: '100vw',
         height: `${bgSize.height}px`,
+        backgroundColor: 'var(--chat-bg)',
         backgroundImage: `linear-gradient(${isDarkMode ? 'rgba(0,0,0,0.45), rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.25), rgba(255,255,255,0.25)'}), url("${isDarkMode ? chatBgDark : chatBgLight}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
