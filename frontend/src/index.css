@@ -202,7 +202,17 @@ html.aura-compact h2 {
 }
 
 html.aura-chat-screen .mobile-container {
+  /* No bottom nav on chat — composer handles safe-area via .chat-composer */
   padding-bottom: 0;
+}
+
+/* Android WebView: env(safe-area-inset-*) is often 0 — use Flutter-injected vars */
+html.aura-chat-screen .chat-composer {
+  padding-bottom: max(40px, var(--aura-safe-bottom, 0px), var(--app-pad-bottom, 12px));
+}
+
+html.aura-chat-screen.aura-keyboard-open .chat-composer {
+  padding-bottom: 8px;
 }
 
 html.aura-keyboard-open .glass-nav {

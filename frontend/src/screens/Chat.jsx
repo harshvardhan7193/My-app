@@ -1193,10 +1193,11 @@ const Chat = () => {
           WebView so this stays directly above the keyboard with no JS inset. */}
       <div
         ref={inputAreaRef}
+        className="chat-composer"
         style={{
           flexShrink: 0,
           width: '100%',
-          padding: '8px 12px max(8px, env(safe-area-inset-bottom, 0px))',
+          padding: '8px 12px',
           boxSizing: 'border-box',
           zIndex: 40,
           display: 'flex',
