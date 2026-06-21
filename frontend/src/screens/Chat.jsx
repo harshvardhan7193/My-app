@@ -6,6 +6,7 @@ import api from '../utils/api';
 import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
 import chatBgDark from '../assets/images/chat background/theme1 dark.png';
+import { useKeyboardInset, KEYBOARD_TRANSITION } from '../hooks/useKeyboardInset';
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -88,30 +89,35 @@ const Chat = () => {
     height: typeof window !== 'undefined' ? window.innerHeight : 800,
     width: typeof window !== 'undefined' ? window.innerWidth : 400
   });
+  const keyboardInset = useKeyboardInset();
+  const inputAreaRef = useRef(null);
+  const [inputAreaHeight, setInputAreaHeight] = useState(96);
 
+  // Keep the chat wallpaper stable — only react to width/orientation changes,
+  // not keyboard height (keyboard is handled via useKeyboardInset).
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
     const handleResize = () => {
-      setBgSize(prev => {
-        // Only update if width changes to ignore keyboard opening which only changes height
+      setBgSize((prev) => {
         if (prev.width !== window.innerWidth) {
           return { height: window.innerHeight, width: window.innerWidth };
         }
         return prev;
       });
-      // Ensure messages stay visible when keyboard slides up
-      // The setTimeout ensures the DOM has updated its layout height
-      setTimeout(() => scrollToBottom('auto'), 50);
     };
     window.addEventListener('resize', handleResize);
-    // Also listen to visualViewport for higher frequency updates during slide
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => scrollToBottom('auto'));
-    }
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (window.visualViewport) window.visualViewport.removeEventListener('resize', () => scrollToBottom('auto'));
-    };
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Measure the fixed input bar so the message list reserves the right space.
+  useEffect(() => {
+    const node = inputAreaRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([entry]) => {
+      setInputAreaHeight(Math.ceil(entry.contentRect.height));
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
   }, []);
 
   const messagesEndRef = useRef(null);
@@ -142,6 +148,12 @@ const Chat = () => {
       messagesEndRef.current?.scrollIntoView({ behavior });
     }
   };
+
+  // When the keyboard opens, keep the latest messages in view.
+  useEffect(() => {
+    if (keyboardInset <= 0) return;
+    requestAnimationFrame(() => scrollToBottom('auto'));
+  }, [keyboardInset]);
 
   useLayoutEffect(() => {
     if (!messages.length) return;
@@ -844,7 +856,13 @@ const Chat = () => {
       <div
         ref={scrollContainerRef}
         onScroll={handleMessagesScroll}
-        style={{ flex: 1, padding: '20px', overflowY: 'auto', position: 'relative' }}
+        style={{
+          flex: 1,
+          padding: '20px',
+          paddingBottom: `calc(20px + ${inputAreaHeight}px)`,
+          overflowY: 'auto',
+          position: 'relative',
+        }}
         className="hide-scrollbar"
       >
         {(isLoadingMore || (hasMoreOlder && messages.length >= messageLimit)) && (
@@ -1131,8 +1149,25 @@ const Chat = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div style={{ padding: '0px 20px 24px 20px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      {/* Input Area — fixed to the visual viewport bottom so keyboard open/close
+          can be animated smoothly (critical for Android WebView / Flutter APK). */}
+      <div
+        ref={inputAreaRef}
+        style={{
+          position: 'fixed',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '100%',
+          maxWidth: '430px',
+          bottom: keyboardInset,
+          padding: '0px 20px calc(24px + var(--app-pad-bottom, 0px)) 20px',
+          boxSizing: 'border-box',
+          zIndex: 40,
+          transition: KEYBOARD_TRANSITION,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <AnimatePresence>
           {(replyToMsg || editingMsg) && (
             <motion.div
@@ -1194,58 +1229,6 @@ const Chat = () => {
             </div>
           </div>
         )}
-        {/* Attachment Menu */}
-        <AnimatePresence>
-          {showAttachmentMenu && (
-            <>
-              <div
-                style={{ position: 'fixed', inset: 0, zIndex: 90 }}
-                onClick={() => setShowAttachmentMenu(false)}
-              />
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                style={{
-                  position: 'absolute',
-                  bottom: '80px',
-                  left: '20px',
-                  background: 'var(--menu-bg)',
-                  borderRadius: '16px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                  padding: '8px',
-                  width: '150px',
-                  zIndex: 100,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px'
-                }}
-              >
-                <div
-                  onClick={() => cameraInputRef.current?.click()}
-                  style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
-                  className="hover-bg-soft"
-                >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#e3f2fd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Camera size={18} color="#2196f3" />
-                  </div>
-                  <span style={{ fontSize: '14px', fontWeight: 500 }}>Camera</span>
-                </div>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
-                  className="hover-bg-soft"
-                >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#f3e5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <ImageIcon size={18} color="#9c27b0" />
-                  </div>
-                  <span style={{ fontSize: '14px', fontWeight: 500 }}>Gallery</span>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
         <div className="premium-card" style={{
           position: 'relative',
           zIndex: 2,
@@ -1285,6 +1268,7 @@ const Chat = () => {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}
+            onFocus={() => requestAnimationFrame(() => scrollToBottom('auto'))}
             style={{
               flex: 1,
               border: 'none',
@@ -1390,7 +1374,7 @@ const Chat = () => {
               exit={{ opacity: 0, y: 10, scale: 0.9 }}
               style={{
                 position: 'fixed',
-                bottom: '80px',
+                bottom: `calc(80px + ${keyboardInset}px + var(--app-pad-bottom, 0px))`,
                 left: '20px',
                 background: 'var(--menu-bg)',
                 borderRadius: '16px',
@@ -1400,7 +1384,8 @@ const Chat = () => {
                 zIndex: 100,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px'
+                gap: '4px',
+                transition: KEYBOARD_TRANSITION,
               }}
             >
               <div
@@ -1462,7 +1447,7 @@ const Chat = () => {
             onClick={handleScrollToBottom}
             style={{
               position: 'absolute',
-              bottom: '120px',
+              bottom: `calc(120px + ${keyboardInset}px)`,
               right: '20px',
               width: '40px',
               height: '40px',
@@ -1474,7 +1459,8 @@ const Chat = () => {
               cursor: 'pointer',
               boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               zIndex: 10,
-              border: '1px solid var(--border-light)'
+              border: '1px solid var(--border-light)',
+              transition: KEYBOARD_TRANSITION,
             }}
           >
             <ChevronDown size={24} color="var(--text-main)" />
@@ -1491,7 +1477,7 @@ const Chat = () => {
             exit={{ opacity: 0, y: 50 }}
             style={{
               position: 'fixed',
-              bottom: '100px',
+              bottom: `calc(100px + ${keyboardInset}px)`,
               left: '50%',
               transform: 'translateX(-50%)',
               background: 'rgba(0,0,0,0.8)',
@@ -1500,7 +1486,8 @@ const Chat = () => {
               borderRadius: '100px',
               fontSize: '14px',
               zIndex: 3000,
-              pointerEvents: 'none'
+              pointerEvents: 'none',
+              transition: KEYBOARD_TRANSITION,
             }}
           >
             {toastMessage}
