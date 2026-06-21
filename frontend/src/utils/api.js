@@ -195,8 +195,51 @@ class ApiClient {
     return data.user;
   }
 
+  deregisterFcmToken(token) {
+    return this.request('/users/me/fcm-token', {
+      method: 'DELETE',
+      body: { token },
+    });
+  }
+
+  /** Remove push tokens from the DB and native FCM while the session is still valid. */
+  async deregisterPushTokens() {
+    const tokens = new Set();
+
+    const stored = localStorage.getItem('fcmToken');
+    if (stored) tokens.add(stored);
+
+    if (window.flutter_inappwebview?.callHandler) {
+      try {
+        const native = await window.flutter_inappwebview.callHandler('getFcmToken');
+        if (native) tokens.add(String(native));
+      } catch {
+        /* ignore — best effort */
+      }
+    }
+
+    if (this.accessToken) {
+      await Promise.all(
+        [...tokens].map((token) =>
+          this.deregisterFcmToken(token).catch(() => {/* ignore per-token failures */}),
+        ),
+      );
+    }
+
+    if (typeof window.auraDeregisterFcm === 'function') {
+      try {
+        await window.auraDeregisterFcm();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    localStorage.removeItem('fcmToken');
+  }
+
   async logout() {
     try {
+      await this.deregisterPushTokens();
       await this.request('/auth/logout', { method: 'POST', credentials: 'include' });
     } finally {
       this.setAccessToken(null);
@@ -204,6 +247,7 @@ class ApiClient {
       // Legacy compatibility for screens that still read currentUser
       localStorage.removeItem('currentUser');
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('fcmToken');
       window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: null }));
     }
   }
@@ -639,13 +683,6 @@ class ApiClient {
 
   registerFcmToken(token) {
     return this.updateMe({ fcmToken: token });
-  }
-
-  deregisterFcmToken(token) {
-    return this.request('/users/me/fcm-token', {
-      method: 'DELETE',
-      body: { token },
-    });
   }
 
   // --- Settings API ---

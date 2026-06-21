@@ -80,17 +80,25 @@ export const useNotifications = (isAuthenticated) => {
   };
 
   const deregister = async () => {
-    if (fcmToken) {
-      try {
-        await api.deregisterFcmToken(fcmToken);
-      } catch (err) {
-        console.error('Failed to deregister FCM token:', err);
-      }
-      setFcmToken(null);
-      localStorage.removeItem('fcmToken');
-      registeredRef.current = false;
+    try {
+      await api.deregisterPushTokens();
+    } catch (err) {
+      console.error('Failed to deregister FCM token:', err);
     }
+    setFcmToken(null);
+    registeredRef.current = false;
   };
+
+  useEffect(() => {
+    const onAuthChange = (e) => {
+      if (!e.detail) {
+        setFcmToken(null);
+        registeredRef.current = false;
+      }
+    };
+    window.addEventListener('auth-user-changed', onAuthChange);
+    return () => window.removeEventListener('auth-user-changed', onAuthChange);
+  }, []);
 
   return { permissionState, fcmToken, requestPermission, deregister };
 };

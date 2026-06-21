@@ -51,9 +51,12 @@ const AdminSettings = () => {
     setPwForm({ current: '', next: '', confirm: '' });
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     toast.info('Signing out...');
-    setTimeout(() => navigate('/login'), 800);
+    try {
+      await api.logout();
+    } catch { /* ignore */ }
+    navigate('/admin/login');
   };
 
   const storageData = [
