@@ -15,13 +15,13 @@ export function applyViewportMetrics(native = null) {
   const vvW = vv?.width ?? layoutW;
 
   const metrics = native || window.__auraNativeMetrics || null;
-  const nativeW = metrics?.w;
-  const nativeH = metrics?.h;
   const safeTop = metrics?.safeTop ?? 0;
   const safeBottom = metrics?.safeBottom ?? 0;
 
-  const appHeight = Number.isFinite(nativeH) && nativeH > 0 ? nativeH : layoutH;
-  const appWidth = Number.isFinite(nativeW) && nativeW > 0 ? nativeW : layoutW;
+  // Always use live inner dimensions — native inject holds full-screen height
+  // and must NOT override layout when adjustResize shrinks the WebView for IME.
+  const appHeight = layoutH;
+  const appWidth = layoutW;
 
   root.style.setProperty('--aura-vw', `${appWidth}px`);
   root.style.setProperty('--aura-vh', `${appHeight}px`);
@@ -41,10 +41,13 @@ export function applyViewportMetrics(native = null) {
     root.style.setProperty('--aura-safe-bottom', `${metrics.safeBottom}px`);
   }
 
-  const padTop = Math.max(safeTop, Math.round(appWidth * 0.035));
-  const padBottom = Math.max(safeBottom, Math.round(appWidth * 0.035));
-  root.style.setProperty('--app-pad-top', `${padTop}px`);
-  root.style.setProperty('--app-pad-bottom', `${padBottom}px`);
+  // Don't rewrite container padding while IME is open — causes visible jumps.
+  if (keyboard <= 48) {
+    const padTop = Math.max(safeTop, Math.round(appWidth * 0.035));
+    const padBottom = Math.max(safeBottom, Math.round(appWidth * 0.035));
+    root.style.setProperty('--app-pad-top', `${padTop}px`);
+    root.style.setProperty('--app-pad-bottom', `${padBottom}px`);
+  }
 
   const scale = Math.min(1, Math.max(0.88, appHeight / 760));
   root.style.setProperty('--aura-scale', String(scale));
@@ -64,14 +67,14 @@ export function initViewportLayoutListeners() {
 
   const vv = window.visualViewport;
   vv?.addEventListener('resize', run);
-  vv?.addEventListener('scroll', run);
+  // Do NOT listen to visualViewport 'scroll' — fires when IME opens and
+  // re-triggers layout, causing the floating-keyboard artifact on Android.
   window.addEventListener('resize', run);
   window.addEventListener('orientationchange', run);
 
   return () => {
     delete window.__auraApplyViewport;
     vv?.removeEventListener('resize', run);
-    vv?.removeEventListener('scroll', run);
     window.removeEventListener('resize', run);
     window.removeEventListener('orientationchange', run);
   };

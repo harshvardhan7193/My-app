@@ -756,7 +756,6 @@ const Chat = () => {
         flexDirection: 'column',
         overflow: 'hidden',
         position: 'relative',
-        marginBottom: composerActive ? 'calc(-1 * var(--app-pad-bottom, 0px))' : 0,
         backgroundColor: 'var(--chat-bg)',
         backgroundImage: `linear-gradient(${isDarkMode ? 'rgba(0,0,0,0.45), rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.25), rgba(255,255,255,0.25)'}), url("${isDarkMode ? chatBgDark : chatBgLight}")`,
         backgroundSize: 'cover',

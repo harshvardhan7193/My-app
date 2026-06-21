@@ -61,12 +61,10 @@ export function useKeyboardInset() {
 
     const vv = window.visualViewport;
     vv?.addEventListener('resize', compute);
-    vv?.addEventListener('scroll', compute);
     window.addEventListener('resize', compute);
 
     return () => {
       vv?.removeEventListener('resize', compute);
-      vv?.removeEventListener('scroll', compute);
       window.removeEventListener('resize', compute);
     };
   }, []);
