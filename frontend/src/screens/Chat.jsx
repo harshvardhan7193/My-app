@@ -4,6 +4,7 @@ import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, Chevro
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import useOnlineStatus from '../hooks/useOnlineStatus';
+import useFetchMe from '../hooks/useFetchMe';
 import { putCache, getCache, isAppOffline } from '../utils/offlineCache';
 import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
@@ -13,20 +14,9 @@ const Chat = () => {
   const navigate = useNavigate();
   const online = useOnlineStatus();
 
-  // Identity / partner — loaded from the backend, with a localStorage fallback for display while loading
-  const [me, setMe] = useState(() => {
-    const saved = localStorage.getItem('user') || localStorage.getItem('currentUser');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.coupleId && (parsed._id || parsed.id)) {
-          return parsed;
-        }
-      } catch (e) {}
-    }
-    return null;
-  });
+  const { me } = useFetchMe();
 
+  // Identity / partner — partner loaded from API; me refreshed via useFetchMe
   const [partner, setPartner] = useState(() => {
     const saved = localStorage.getItem('partner');
     if (saved) {
@@ -248,35 +238,14 @@ const Chat = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Bootstrap: resolve current user + partner once on mount.
+  // Bootstrap: resolve partner once on mount (me comes from useFetchMe).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [meData, partnerData] = await Promise.all([
-          api.getMe(),
-          api.getPartner().catch(() => null),
-        ]);
+        const partnerData = await api.getPartner().catch(() => null);
         if (cancelled) return;
-        
-        if (meData) {
-          setMe(meData);
-          localStorage.setItem('user', JSON.stringify(meData));
-          
-          // Keep legacy currentUser in sync
-          const savedMe = localStorage.getItem('currentUser');
-          if (savedMe) {
-            try {
-              const parsed = JSON.parse(savedMe);
-              parsed._id = meData._id;
-              parsed.coupleId = meData.coupleId;
-              parsed.name = meData.name;
-              parsed.avatar = meData.avatar;
-              localStorage.setItem('currentUser', JSON.stringify(parsed));
-            } catch (e) {}
-          }
-        }
-        
+
         if (partnerData) {
           setPartner(partnerData);
           localStorage.setItem('partner', JSON.stringify(partnerData));

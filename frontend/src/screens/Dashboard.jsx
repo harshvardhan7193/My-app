@@ -4,6 +4,7 @@ import { Heart, Plus, Bell, Settings as SettingsIcon, Play, X } from 'lucide-rea
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import useOnlineStatus from '../hooks/useOnlineStatus';
+import useFetchMe from '../hooks/useFetchMe';
 import dashboardHero from '../assets/images/dashboard_hero.png';
 import StoriesAndHighlights from '../components/StoriesAndHighlights';
 
@@ -31,7 +32,7 @@ const Dashboard = () => {
   const [showMoodPicker, setShowMoodPicker] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const [currentUser, setCurrentUser] = useState(null);
+  const { me: currentUser, setMe: setCurrentUser } = useFetchMe();
   const [partnerUser, setPartnerUser] = useState(null);
   const [settings, setSettings] = useState(null);
   const [memories, setMemories] = useState([]);
@@ -44,15 +45,13 @@ const Dashboard = () => {
       try {
         setLoading(true);
         // Parallel requests
-        const [me, partner, coupleSettings, memoriesData, unreadData] = await Promise.all([
-          api.getMe(),
+        const [partner, coupleSettings, memoriesData, unreadData] = await Promise.all([
           api.getPartner().catch(() => null),
           api.getSettings(),
           api.getMemories(),
           api.getUnreadNotificationCount().catch(() => ({ count: 0 }))
         ]);
 
-        setCurrentUser(me);
         setPartnerUser(partner);
         setSettings(coupleSettings);
         const fetchedMemories = memoriesData.memories || memoriesData || [];

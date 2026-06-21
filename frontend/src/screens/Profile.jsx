@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Palette, LogOut, ChevronRight, Heart, Edit2, Send } from 'lucide-react';
 import api from '../utils/api';
+import useFetchMe from '../hooks/useFetchMe';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -23,9 +24,20 @@ const Profile = () => {
     };
   }, []);
 
-  const [me, setMe] = useState(null);
+  const { me, setMe } = useFetchMe();
   const [partner, setPartner] = useState(null);
   const [stats, setStats] = useState({ memoriesCount: null, albumsCount: null, daysTogether: null });
+
+  useEffect(() => {
+    if (!me?.preferredTheme) return;
+    const shouldBeDark =
+      me.preferredTheme === 'dark'
+      || (me.preferredTheme === 'system'
+        && window.matchMedia
+        && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.body.classList.toggle('dark-mode', !!shouldBeDark);
+    setIsDark(!!shouldBeDark);
+  }, [me?.preferredTheme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,17 +53,6 @@ const Profile = () => {
         setPartner(dash.partner || null);
       } catch (err) {
         console.error('Failed to load dashboard stats:', err);
-      }
-      try {
-        const meData = await api.getMe();
-        if (!cancelled) {
-          setMe(meData);
-          const shouldBeDark = meData?.preferredTheme === 'dark' || (meData?.preferredTheme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          document.body.classList.toggle('dark-mode', !!shouldBeDark);
-          setIsDark(!!shouldBeDark);
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
       }
     })();
     return () => { cancelled = true; };

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Heart } from 'lucide-react';
 import api from '../utils/api';
+import useFetchMe from '../hooks/useFetchMe';
 
 const Calendar = () => {
+  useFetchMe();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddEvent, setShowAddEvent] = useState(false);

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X, Lock, ShieldCheck, Eye, EyeOff, KeyRound, RefreshCw } from 'lucide-react';
 import api from '../utils/api';
+import useFetchMe from '../hooks/useFetchMe';
 import {
   setVaultToken,
   getVaultToken,
@@ -11,6 +12,7 @@ import {
 
 const Albums = () => {
   const navigate = useNavigate();
+  useFetchMe();
   const [loading, setLoading] = useState(true);
   const [albums, setAlbums] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
