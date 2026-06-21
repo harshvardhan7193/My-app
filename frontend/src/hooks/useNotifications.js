@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { requestNotificationPermission, messaging, onForegroundMessage } from '../config/firebase';
 import api from '../utils/api';
+import { acknowledgeChatDelivery } from '../utils/chatDelivery';
 
 export const useNotifications = (isAuthenticated) => {
   const [permissionState, setPermissionState] = useState(
@@ -39,7 +40,13 @@ export const useNotifications = (isAuthenticated) => {
   useEffect(() => {
     const unsubscribe = onForegroundMessage((payload) => {
       console.log('Received foreground message:', payload);
-      
+
+      const messageId = payload.data?.messageId;
+      const coupleId = payload.data?.coupleId;
+      if (messageId && coupleId) {
+        acknowledgeChatDelivery(messageId, coupleId).catch(() => {});
+      }
+
       const isChatUrl = payload.data?.url === '/chat';
       const isOnChatPage = window.location.pathname === '/chat';
       if (isOnChatPage && isChatUrl) {

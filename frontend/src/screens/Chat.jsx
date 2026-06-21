@@ -6,9 +6,34 @@ import api from '../utils/api';
 import useOnlineStatus from '../hooks/useOnlineStatus';
 import useFetchMe from '../hooks/useFetchMe';
 import { putCache, getCache, isAppOffline } from '../utils/offlineCache';
-import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
+import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText, setTypingStatus, subscribePartnerTyping } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
 import chatBgDark from '../assets/images/chat background/theme1 dark.png';
+
+const READ_TICK_COLOR = '#53bdeb';
+
+/** sent → single tick · delivered → double tick · read → blue double tick */
+const MessageStatusTicks = ({ status, size = 12, onDark = false }) => {
+  if (status === 'read') {
+    return <CheckCheck size={size} color={READ_TICK_COLOR} strokeWidth={2.5} />;
+  }
+  if (status === 'delivered') {
+    return (
+      <CheckCheck
+        size={size}
+        color={onDark ? 'white' : 'var(--text-sub)'}
+        strokeWidth={2.5}
+      />
+    );
+  }
+  return (
+    <Check
+      size={size}
+      color={onDark ? 'white' : 'var(--text-sub)'}
+      strokeWidth={2.5}
+    />
+  );
+};
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -77,6 +102,7 @@ const Chat = () => {
     typeof document !== 'undefined' && document.body.classList.contains('dark-mode')
   );
   const [composerActive, setComposerActive] = useState(false);
+  const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const inputAreaRef = useRef(null);
 
   const messagesEndRef = useRef(null);
@@ -85,6 +111,9 @@ const Chat = () => {
   const textInputRef = useRef(null);
   const didInitialScrollRef = useRef(false);
   const processedMessageIdsRef = useRef(new Set());
+  const typingStopTimerRef = useRef(null);
+  const isTypingRef = useRef(false);
+  const lastTypingWriteRef = useRef(0);
 
   // Paginated history: start by showing only the latest 20 messages, and
   // load 20 more older messages each time the user scrolls near the top.
@@ -378,9 +407,13 @@ const Chat = () => {
         setMessages(msgs);
         putCache('chatMessages', msgs);
 
-        // Mark incoming messages as read
-        msgs.forEach(msg => {
-          if (msg.sender !== String(me._id) && msg.status !== 'read') {
+        // Mark incoming messages as read while this chat is open.
+        msgs.forEach((msg) => {
+          if (
+            msg.sender !== String(me._id)
+            && msg.status !== 'read'
+            && msg.id
+          ) {
             updateMessageStatus(me.coupleId, msg.id, 'read').catch(console.error);
           }
         });
@@ -393,9 +426,64 @@ const Chat = () => {
     };
   }, [me?.coupleId, messageLimit]);
 
+  const stopTyping = useCallback(() => {
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+    if (!isTypingRef.current || !me?.coupleId || !me?._id) return;
+    isTypingRef.current = false;
+    setTypingStatus(me.coupleId, String(me._id), false).catch(() => {});
+  }, [me?.coupleId, me?._id]);
+
+  const pulseTyping = useCallback(() => {
+    if (!me?.coupleId || !me?._id || !online) return;
+    const now = Date.now();
+    if (!isTypingRef.current || now - lastTypingWriteRef.current > 2000) {
+      isTypingRef.current = true;
+      lastTypingWriteRef.current = now;
+      setTypingStatus(me.coupleId, String(me._id), true).catch(() => {});
+    }
+  }, [me?.coupleId, me?._id, online]);
+
+  const handleInputChange = useCallback((e) => {
+    const value = e.target.value;
+    setInputText(value);
+    if (!online) return;
+    if (value.trim()) {
+      pulseTyping();
+      if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = setTimeout(stopTyping, 2500);
+    } else {
+      stopTyping();
+    }
+  }, [online, pulseTyping, stopTyping]);
+
+  useEffect(() => {
+    if (!me?.coupleId || !partner?._id) return undefined;
+    return subscribePartnerTyping(
+      me.coupleId,
+      String(partner._id),
+      setPartnerIsTyping,
+    );
+  }, [me?.coupleId, partner?._id]);
+
+  useEffect(() => {
+    if (!partnerIsTyping) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distanceFromBottom < 120) {
+      requestAnimationFrame(() => scrollToBottom('smooth'));
+    }
+  }, [partnerIsTyping]);
+
+  useEffect(() => () => stopTyping(), [stopTyping]);
+
   const handleSendMessage = async () => {
     const text = inputText.trim();
     if (!text || !me?.coupleId || !online) return;
+    stopTyping();
     setInputText('');
     try {
       const payload = {
@@ -640,12 +728,13 @@ const Chat = () => {
         payload.replyToSender = replyToMsg.sender;
         setReplyToMsg(null);
       }
-      await pushMessage(me.coupleId, payload);
+      const msgId = pushMessage(me.coupleId, payload);
       api.logActivity('Sent a message', 'chat').catch(() => {});
       if (partner?._id) {
         api.sendChatNotification({
           recipientId: String(partner._id),
-          messagePreview: `Sent a photo/file: ${mediaKindLabel}`
+          messagePreview: `Sent a photo/file: ${mediaKindLabel}`,
+          messageId: msgId,
         }).catch((err) => console.error('Failed to send chat push notification:', err));
       }
       setUploadProgress(100);
@@ -771,8 +860,10 @@ const Chat = () => {
           </div>
           <div onClick={() => navigate('/partner-profile')} style={{ cursor: 'pointer' }}>
             <h4 style={{ fontSize: '16px' }}>{(partner?.name || user.partnerName || 'Partner').split(' ')[0]}</h4>
-            <p style={{ fontSize: '12px', color: isMuted ? 'var(--text-muted)' : '#4CAF50' }}>
-              {isMuted ? 'Notifications Muted' : (partner?.isOnline ? 'Online now' : 'Offline')}
+            <p style={{ fontSize: '12px', color: partnerIsTyping ? 'var(--blush-pink)' : (isMuted ? 'var(--text-muted)' : '#4CAF50') }}>
+              {partnerIsTyping
+                ? 'typing...'
+                : (isMuted ? 'Notifications Muted' : (partner?.isOnline ? 'Online now' : 'Offline'))}
             </p>
           </div>
         </div>
@@ -1021,8 +1112,8 @@ const Chat = () => {
                         }}>
                           <p style={{ fontSize: '10px', color: 'white', margin: 0 }}>{msgTime}</p>
                           {isMine && (
-                            <span style={{ display: 'flex', color: 'white', opacity: 0.9 }}>
-                              {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                            <span style={{ display: 'flex', opacity: 0.9 }}>
+                              <MessageStatusTicks status={msg.status} size={12} onDark />
                             </span>
                           )}
                         </div>
@@ -1053,7 +1144,7 @@ const Chat = () => {
                               <p style={{ fontSize: '10px', margin: 0 }}>{msgTime}</p>
                               {isMine && (
                                 <span style={{ display: 'flex' }}>
-                                  {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                                  <MessageStatusTicks status={msg.status} size={12} />
                                 </span>
                               )}
                             </div>
@@ -1092,7 +1183,7 @@ const Chat = () => {
                             <p style={{ fontSize: '10px', margin: 0 }}>{msgTime}</p>
                             {isMine && (
                               <span style={{ display: 'flex' }}>
-                                {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                                <MessageStatusTicks status={msg.status} size={12} />
                               </span>
                             )}
                           </div>
@@ -1115,7 +1206,7 @@ const Chat = () => {
                           <p style={{ fontSize: '10px', margin: 0, whiteSpace: 'nowrap' }}>{msgTime}</p>
                           {isMine && (
                             <span style={{ display: 'flex' }}>
-                              {msg.status === 'read' ? <CheckCheck size={12} color="#4ea8de" /> : msg.status === 'delivered' ? <CheckCheck size={12} /> : <Check size={12} />}
+                              <MessageStatusTicks status={msg.status} size={12} />
                             </span>
                           )}
                         </div>
@@ -1127,6 +1218,49 @@ const Chat = () => {
             );
           })}
         </AnimatePresence>
+
+        <AnimatePresence>
+          {partnerIsTyping && (
+            <motion.div
+              key="partner-typing"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-start',
+                marginBottom: '16px',
+              }}
+            >
+              <div
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '20px 20px 20px 4px',
+                  backgroundColor: 'var(--bubble-them)',
+                  color: 'var(--msg-them-text)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  minHeight: '40px',
+                }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    animate={{ opacity: [0.35, 1, 0.35], y: [0, -4, 0] }}
+                    transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+                    style={{ fontSize: '24px', lineHeight: 1, fontWeight: 700 }}
+                  >
+                    ·
+                  </motion.span>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div ref={messagesEndRef} />
 
         <AnimatePresence>
@@ -1273,13 +1407,16 @@ const Chat = () => {
               ref={textInputRef}
               placeholder="Type a love note..."
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={handleInputChange}
               onKeyPress={handleKeyPress}
               onFocus={() => {
                 setComposerActive(true);
                 requestAnimationFrame(() => scrollToBottom('auto'));
               }}
-              onBlur={() => setComposerActive(false)}
+              onBlur={() => {
+                setComposerActive(false);
+                stopTyping();
+              }}
               style={{
                 flex: 1,
                 minWidth: 0,
@@ -1579,7 +1716,7 @@ const Chat = () => {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <CheckCheck size={20} color="#3b82f6" />
+                  <CheckCheck size={20} color={READ_TICK_COLOR} />
                   <div>
                     <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>Read</p>
                     <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-sub)' }}>

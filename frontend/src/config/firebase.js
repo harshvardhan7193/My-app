@@ -130,6 +130,66 @@ export const pushMessage = (coupleId, message) => {
   return newRef.key;
 };
 
+const typingRef = (coupleId, userId) =>
+  dbRef(db, `chats/${coupleId}/typing/${userId}`);
+
+const TYPING_STALE_MS = 4000;
+
+/** Broadcast whether the current user is typing in a couple chat. */
+export const setTypingStatus = (coupleId, userId, isTyping) => {
+  if (!coupleId || !userId) return Promise.resolve();
+  if (isTyping) {
+    return dbSet(typingRef(coupleId, userId), {
+      isTyping: true,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  return dbRemove(typingRef(coupleId, userId));
+};
+
+/**
+ * Listen for a partner's typing state. Returns an unsubscribe function.
+ * Stale indicators auto-clear if `updatedAt` is older than ~4s.
+ */
+export const subscribePartnerTyping = (coupleId, partnerId, cb) => {
+  if (!coupleId || !partnerId) return () => {};
+
+  let staleTimer = null;
+
+  const evaluate = (val) => {
+    if (staleTimer) {
+      clearTimeout(staleTimer);
+      staleTimer = null;
+    }
+    if (!val?.isTyping) {
+      cb(false);
+      return;
+    }
+    const updatedAt = val.updatedAt;
+    if (typeof updatedAt !== 'number') {
+      cb(true);
+      staleTimer = setTimeout(() => cb(false), TYPING_STALE_MS);
+      return;
+    }
+    const age = Date.now() - updatedAt;
+    if (age >= TYPING_STALE_MS) {
+      cb(false);
+      return;
+    }
+    cb(true);
+    staleTimer = setTimeout(() => cb(false), TYPING_STALE_MS - age);
+  };
+
+  const unsub = onValue(typingRef(coupleId, partnerId), (snap) => {
+    evaluate(snap.val());
+  });
+
+  return () => {
+    if (staleTimer) clearTimeout(staleTimer);
+    unsub();
+  };
+};
+
 /** Remove a single message from a couple's chat. */
 export const removeMessage = (coupleId, messageId) =>
   dbRemove(dbRef(db, `chats/${coupleId}/messages/${messageId}`));
@@ -165,11 +225,23 @@ export const searchAllMessages = async (coupleId, searchText) => {
 };
 
 /** Update the status of a specific message (sent, delivered, read) */
-export const updateMessageStatus = (coupleId, messageId, status) => {
+export const updateMessageStatus = async (coupleId, messageId, status) => {
+  const ref = dbRef(db, `chats/${coupleId}/messages/${messageId}`);
+
+  if (status === 'delivered') {
+    try {
+      const snap = await get(ref);
+      const current = snap.val()?.status;
+      if (current === 'read' || current === 'delivered') return;
+    } catch {
+      /* proceed with best-effort update */
+    }
+  }
+
   const updates = { status };
   if (status === 'delivered') updates.deliveredAt = serverTimestamp();
   if (status === 'read') updates.readAt = serverTimestamp();
-  return dbUpdate(dbRef(db, `chats/${coupleId}/messages/${messageId}`), updates);
+  return dbUpdate(ref, updates);
 };
 
 /** Edit the text of a specific message */

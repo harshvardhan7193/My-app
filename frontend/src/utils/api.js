@@ -663,6 +663,17 @@ class ApiClient {
     });
   }
 
+  /** Public delivery ack — no auth required (service worker / native FCM). */
+  markChatMessageDelivered(messageId, coupleId) {
+    return fetch(`${API_BASE_URL}/notifications/chat-delivered`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId, coupleId }),
+    })
+      .then(async (res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+  }
+
   getNotificationHistory() {
     return this.request('/notifications/history');
   }
