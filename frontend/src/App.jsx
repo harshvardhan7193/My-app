@@ -28,6 +28,8 @@ import BottomNav from './components/BottomNav';
 import RouteLocker from './components/RouteLocker';
 import RoutePersister from './components/RoutePersister';
 import ShareIntentListener from './components/ShareIntentListener';
+import OfflineBanner from './components/OfflineBanner';
+import { isAppOffline } from './utils/offlineCache';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/screens/AdminDashboard';
 import UserManagement from './admin/screens/UserManagement';
@@ -222,9 +224,22 @@ const App = () => {
     // both are empty, so we skip the /auth/refresh probe entirely and avoid a
     // pointless 401 on the very first page load.
     const hasPriorSession = !!localStorage.getItem('user');
+    const offline = isAppOffline();
 
     (async () => {
       try {
+        // Offline with prior session — skip network bootstrap; use stored token/user.
+        if (offline && hasPriorSession) {
+          const stored = localStorage.getItem('user');
+          if (stored) {
+            try {
+              const user = JSON.parse(stored);
+              setPreferredTheme(user?.preferredTheme || 'light');
+            } catch { /* ignore */ }
+          }
+          return;
+        }
+
         if (api.accessToken) {
           await hydrateFromMe();
           return;
@@ -284,6 +299,7 @@ const App = () => {
     <AppErrorBoundary>
       <Router>
         <NotificationToastProvider>
+          <OfflineBanner />
           <PathTracker />
           <RouteLocker />
           <RoutePersister />

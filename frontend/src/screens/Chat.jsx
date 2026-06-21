@@ -3,12 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Play, FileText, Music2, Download, ExternalLink, Reply, Check, CheckCheck, Copy, Info, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import useOnlineStatus from '../hooks/useOnlineStatus';
+import { putCache, getCache, isAppOffline } from '../utils/offlineCache';
 import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
 import chatBgDark from '../assets/images/chat background/theme1 dark.png';
 
 const Chat = () => {
   const navigate = useNavigate();
+  const online = useOnlineStatus();
 
   // Identity / partner — loaded from the backend, with a localStorage fallback for display while loading
   const [me, setMe] = useState(() => {
@@ -335,6 +338,18 @@ const Chat = () => {
     };
   }, [me, partner]);
 
+  // Restore cached chat history when offline.
+  useEffect(() => {
+    if (!me?.coupleId || !isAppOffline()) return undefined;
+    let cancelled = false;
+    getCache('chatMessages').then((cached) => {
+      if (!cancelled && Array.isArray(cached) && cached.length) {
+        setMessages(cached);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [me?.coupleId]);
+
   // Subscribe to the live message stream with a growing window. Re-subscribing
   // when `messageLimit` increases pulls in older history while still keeping
   // the realtime tail (Firebase RTDB's limitToLast is anchored to the newest
@@ -353,6 +368,7 @@ const Chat = () => {
           setHasMoreOlder(false);
         }
         setMessages(msgs);
+        putCache('chatMessages', msgs);
 
         // Mark incoming messages as read
         msgs.forEach(msg => {
@@ -371,7 +387,7 @@ const Chat = () => {
 
   const handleSendMessage = async () => {
     const text = inputText.trim();
-    if (!text || !me?.coupleId) return;
+    if (!text || !me?.coupleId || !online) return;
     setInputText('');
     try {
       const payload = {

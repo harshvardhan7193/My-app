@@ -3,11 +3,31 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Plus, Bell, Settings as SettingsIcon, Play, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import useOnlineStatus from '../hooks/useOnlineStatus';
 import dashboardHero from '../assets/images/dashboard_hero.png';
 import StoriesAndHighlights from '../components/StoriesAndHighlights';
 
+const readStoredUser = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const readStoredPartner = () => {
+  try {
+    const raw = localStorage.getItem('partner');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const online = useOnlineStatus();
   const [showMoodPicker, setShowMoodPicker] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -40,12 +60,16 @@ const Dashboard = () => {
         setUnreadCount(unreadData?.count || 0);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
+        if (!online) {
+          setCurrentUser((prev) => prev || readStoredUser());
+          setPartnerUser((prev) => prev || readStoredPartner());
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchDashboardData();
-  }, []);
+  }, [online]);
 
   const moods = [
     { emoji: '🥰', label: 'Loved' },
@@ -57,6 +81,7 @@ const Dashboard = () => {
   ];
 
   const handleSelectMood = async (m) => {
+    if (!online) return;
     const moodStr = `${m.label} ${m.emoji}`;
     try {
       const updated = await api.updateMe({ mood: moodStr });

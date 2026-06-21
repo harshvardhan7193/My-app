@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:flutter": "vite build && powershell -ExecutionPolicy Bypass -File ../scripts/copy-www-to-flutter.ps1",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "firebase": "^12.13.0",
     "framer-motion": "^12.38.0",
+    "idb": "^8.0.3",
+    "idb": "^8.0.3",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import SkeletonGallery from '../components/SkeletonGallery';
 import api from '../utils/api';
+import useOnlineStatus from '../hooks/useOnlineStatus';
 
 const Gallery = () => {
   const navigate = useNavigate();
+  const online = useOnlineStatus();
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
   const [showSearch, setShowSearch] = useState(false);
@@ -184,8 +186,10 @@ const Gallery = () => {
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        onClick={() => setShowAddModal(true)}
+        onClick={() => { if (online) setShowAddModal(true); }}
         style={{
+          opacity: online ? 1 : 0.45,
+          pointerEvents: online ? 'auto' : 'none',
           position: 'fixed',
           bottom: '110px',
           right: '30px',

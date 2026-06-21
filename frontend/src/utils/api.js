@@ -7,16 +7,35 @@
 //   first-party cookie for the SPA's host. Third-party cookies don't
 //   reliably persist across launches in Android WebViews, which is what
 //   was breaking auth on the second launch of the Flutter wrapper.
+// - When loaded from bundled file:// assets (offline shell), use the live
+//   Vercel origin so API calls work when connectivity returns.
+import { getCache, putCache, isAppOffline } from './offlineCache';
+
 const _resolveApiBase = () => {
   const fromEnv = import.meta.env.VITE_API_URL;
   if (typeof window === 'undefined') return fromEnv || '/api';
   const host = window.location.hostname;
+  const protocol = window.location.protocol;
   const isLocalDev = host === 'localhost' || host === '127.0.0.1';
   if (isLocalDev) return fromEnv || 'http://localhost:5000/api';
+  if (protocol === 'file:' || host === '') {
+    return 'https://neharsh.vercel.app/api';
+  }
   // Production: ignore any cross-origin URL in VITE_API_URL — go same-origin.
   return '/api';
 };
 const API_BASE_URL = _resolveApiBase();
+
+/** Map GET endpoint path (no query) → offlineCache key */
+const CACHEABLE_GETS = {
+  '/users/me': 'user',
+  '/users/partner': 'partner',
+  '/memories': 'memories',
+  '/albums': 'albums',
+  '/settings': 'settings',
+  '/events': 'events',
+  '/notifications/unread-count': 'unreadCount',
+};
 
 /**
  * Enhanced fetch client with support for custom headers, auto JWT injection,
@@ -60,6 +79,8 @@ class ApiClient {
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     const headers = this.getHeaders(options);
+    const method = (options.method || 'GET').toUpperCase();
+    const cacheKey = method === 'GET' ? CACHEABLE_GETS[endpoint.split('?')[0]] : null;
 
     const config = {
       ...options,
@@ -86,7 +107,7 @@ class ApiClient {
           'ALBUM_LOCKED', 'ALBUM_UNLOCK_EXPIRED', 'ALBUM_UNLOCK_INVALID',
         ]);
         if (body?.code && PRIVACY_CODES.has(body.code)) {
-          return this.handleResponse(response);
+          return this.handleResponse(response, cacheKey);
         }
 
         // Try a silent refresh once. If it works, retry the original request.
@@ -94,7 +115,7 @@ class ApiClient {
         if (refreshed) {
           headers.set('Authorization', `Bearer ${this.accessToken}`);
           const retryResponse = await fetch(url, config);
-          return this.handleResponse(retryResponse);
+          return this.handleResponse(retryResponse, cacheKey);
         }
 
         // Refresh failed — clear stored session but DON'T hard-redirect.
@@ -108,14 +129,18 @@ class ApiClient {
         throw err;
       }
 
-      return this.handleResponse(response);
+      return this.handleResponse(response, cacheKey);
     } catch (error) {
+      if (cacheKey && isAppOffline()) {
+        const cached = await getCache(cacheKey);
+        if (cached !== undefined) return cached;
+      }
       console.error(`API Request Error [${config.method || 'GET'} ${endpoint}]:`, error);
       throw error;
     }
   }
 
-  async handleResponse(response) {
+  async handleResponse(response, cacheKey = null) {
     const isJson = response.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await response.json() : null;
 
@@ -127,6 +152,10 @@ class ApiClient {
       if (data?.code) err.code = data.code;
       err.status = response.status;
       throw err;
+    }
+
+    if (cacheKey) {
+      putCache(cacheKey, data);
     }
 
     return data;
