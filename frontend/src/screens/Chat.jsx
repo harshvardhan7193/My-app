@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Play, FileText, Music2, Download, ExternalLink, Reply, Check, CheckCheck, Copy, Info, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -117,6 +117,20 @@ const Chat = () => {
     }
   };
 
+  // Jump to the latest message — retried across frames because the chat mounts
+  // right after the door animation when flex layout / images may not be final yet.
+  const ensureScrolledToLatest = useCallback(() => {
+    const jump = () => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      container.scrollTop = container.scrollHeight;
+    };
+    jump();
+    requestAnimationFrame(jump);
+    requestAnimationFrame(() => requestAnimationFrame(jump));
+    [50, 150, 350, 600].forEach((ms) => setTimeout(jump, ms));
+  }, []);
+
   // Keep the latest messages visible when the composer is focused.
   useEffect(() => {
     if (!composerActive) return;
@@ -141,12 +155,14 @@ const Chat = () => {
     }
 
     if (!didInitialScrollRef.current) {
-      // On first open, jump directly to the latest message.
-      scrollToBottom('auto');
-
-      // One extra settle pass for media/animation layout shifts.
-      setTimeout(() => scrollToBottom('auto'), 120);
-      didInitialScrollRef.current = true;
+      ensureScrolledToLatest();
+      // Mark initial scroll done only after layout has had time to settle
+      // (door open fade + message bubble paint). Prevents a later me?._id
+      // update from treating the view as "user scrolled up" while still at top.
+      setTimeout(() => {
+        ensureScrolledToLatest();
+        didInitialScrollRef.current = true;
+      }, 400);
       return;
     }
 
@@ -168,7 +184,16 @@ const Chat = () => {
         scrollToBottom('smooth');
       }
     }
-  }, [messages, me?._id]);
+  }, [messages, me?._id, ensureScrolledToLatest]);
+
+  // Belt-and-suspenders: when Chat first mounts after the door opens, keep
+  // pinning to the bottom until the initial scroll latch is set.
+  useEffect(() => {
+    if (!messages.length || didInitialScrollRef.current) return undefined;
+    ensureScrolledToLatest();
+    const t = setTimeout(ensureScrolledToLatest, 500);
+    return () => clearTimeout(t);
+  }, [messages.length, ensureScrolledToLatest]);
 
   // Triggered when the user scrolls near the top of the message list — bump
   // the live window by another page so older history streams in.
@@ -723,6 +748,7 @@ const Chat = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      onAnimationComplete={ensureScrolledToLatest}
       style={{
         height: '100%',
         minHeight: 0,
