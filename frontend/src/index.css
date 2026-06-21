@@ -229,6 +229,18 @@ html.aura-keyboard-open .mobile-container {
 }
 
 .glass-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(4px + var(
+    --aura-nav-bottom,
+    max(
+      env(safe-area-inset-bottom, 0px),
+      var(--aura-safe-bottom, 0px),
+      var(--app-pad-bottom, 12px)
+    )
+  ));
+  z-index: 100;
   background: var(--glass-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

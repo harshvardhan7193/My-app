@@ -422,7 +422,7 @@ const ChatGate = () => {
             style={{
               position: 'absolute',
               // Sit above the BottomNav (~76px tall + its bottom offset).
-              bottom: 'calc(110px + var(--app-pad-bottom, 0px))',
+              bottom: 'calc(110px + var(--aura-nav-bottom, var(--app-pad-bottom, 0px)))',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',

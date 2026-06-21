@@ -84,10 +84,6 @@ const BottomNav = () => {
 
   return (
     <nav className="glass-nav" style={{
-      position: 'fixed',
-      bottom: 'calc(4px + var(--app-pad-bottom, 0px))',
-      left: '50%',
-      transform: 'translateX(-50%)',
       width: 'calc(100% - clamp(24px, 6vw, 40px))',
       maxWidth: 'min(390px, calc(var(--aura-vw, 100vw) - 24px))',
       height: '72px',
@@ -96,7 +92,6 @@ const BottomNav = () => {
       alignItems: 'center',
       justifyContent: 'space-around',
       padding: '0 12px',
-      zIndex: 100,
       boxShadow: '0 10px 30px rgba(0,0,0,0.08)'
     }}>
       {navItems.map((item) => {
