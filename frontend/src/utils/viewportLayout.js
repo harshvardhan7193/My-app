@@ -54,6 +54,13 @@ export function applyViewportMetrics(native = null) {
     root.style.setProperty('--app-pad-bottom', `${padBottom}px`);
   }
 
+  // Chat composer sits flush on the screen edge (no app bottom nav). Android
+  // WebViews often report env(safe-area-inset-bottom) as 0 — use native inject
+  // with a 48px floor for 3-button / gesture navigation bars.
+  const composerBottom =
+    keyboard > 48 ? 8 : Math.max(8, safeBottom, padBottom, 48);
+  root.style.setProperty('--aura-composer-bottom', `${composerBottom}px`);
+
   const scale = Math.min(1, Math.max(0.88, appHeight / 760));
   root.style.setProperty('--aura-scale', String(scale));
 

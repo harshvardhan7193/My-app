@@ -135,6 +135,7 @@ const Chat = () => {
   // sits flush on the screen edge (WebView adjustResize handles the keyboard).
   useEffect(() => {
     document.documentElement.classList.add('aura-chat-screen');
+    window.__auraApplyViewport?.();
     return () => document.documentElement.classList.remove('aura-chat-screen');
   }, []);
 
@@ -1197,7 +1198,9 @@ const Chat = () => {
         style={{
           flexShrink: 0,
           width: '100%',
-          padding: '8px 12px',
+          paddingTop: '8px',
+          paddingLeft: '12px',
+          paddingRight: '12px',
           boxSizing: 'border-box',
           zIndex: 40,
           display: 'flex',
