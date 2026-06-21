@@ -89,7 +89,7 @@ const Chat = () => {
   );
   const [composerActive, setComposerActive] = useState(false);
   const inputAreaRef = useRef(null);
-  const { offset: kbOffset } = useKeyboardInset();
+  const kbOffset = useKeyboardInset(composerActive);
   const [composerH, setComposerH] = useState(64);
 
   const messagesEndRef = useRef(null);
@@ -1201,11 +1201,13 @@ const Chat = () => {
           maxWidth: 'min(430px, 100%)',
           marginLeft: 'auto',
           marginRight: 'auto',
-          bottom: kbOffset > 0 ? `${kbOffset}px` : 'var(--app-pad-bottom, 0px)',
+          bottom: composerActive && kbOffset > 48
+            ? `${kbOffset}px`
+            : 'var(--app-pad-bottom, 0px)',
           transition: KEYBOARD_TRANSITION,
           width: '100%',
           padding: composerActive
-            ? (kbOffset > 0 ? '6px 12px 4px' : '6px 12px max(4px, env(safe-area-inset-bottom, 0px))')
+            ? (kbOffset > 48 ? '6px 12px 4px' : '6px 12px max(4px, env(safe-area-inset-bottom, 0px))')
             : '0px 12px 0',
           boxSizing: 'border-box',
           zIndex: 50,
