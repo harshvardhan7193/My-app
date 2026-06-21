@@ -6,36 +6,55 @@ import { useState, useEffect } from 'react';
 export const KEYBOARD_TRANSITION = 'bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
 
 /**
- * Tracks how many CSS pixels the on-screen keyboard (or any UI chrome
- * shrinking the visual viewport) occupies at the bottom of the screen.
+ * Tracks keyboard state for a hybrid Flutter WebView + SPA chat input.
  *
- * Designed for hybrid apps: Chrome animates keyboard resize natively, but
- * Android WebView often fires one abrupt layout change. Pair the returned
- * inset with `KEYBOARD_TRANSITION` on a `position: fixed` bottom bar so
- * the UI glides up/down instead of jumping.
+ * Returns:
+ *   offset — CSS `bottom` value for a `position: fixed` input bar.
+ *            Only non-zero when the layout viewport stays full-height
+ *            (adjustNothing + overlays-content). When Android adjustResize
+ *            shrinks the layout, offset is forced to 0 to avoid double-lift.
+ *   isOpen — whether the keyboard (or bottom chrome) is covering the screen.
  */
 export function useKeyboardInset() {
-  const [inset, setInset] = useState(0);
+  const [state, setState] = useState({ offset: 0, isOpen: false });
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
+    let peakLayoutHeight = window.innerHeight;
+
     const compute = () => {
       const vv = window.visualViewport;
       if (!vv) {
-        setInset(0);
+        setState({ offset: 0, isOpen: false });
         return;
       }
-      // If the browser bumped visualViewport.scale (common in Android WebView
-      // when focusing inputs), treat keyboard inset as zero — the zoom shim in
-      // bridge_script.dart will reset scale; animating bottom against a scaled
-      // viewport makes the whole chat look like it pinches in.
+
       if (vv.scale > 1.01) {
-        setInset(0);
+        setState({ offset: 0, isOpen: false });
         return;
       }
-      const next = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      setInset(next);
+
+      peakLayoutHeight = Math.max(peakLayoutHeight, window.innerHeight);
+
+      const overlap = Math.max(
+        0,
+        Math.round(window.innerHeight - vv.height - vv.offsetTop),
+      );
+
+      // adjustResize + resizes-content shrinks innerHeight with the keyboard.
+      // Applying overlap on top would lift the input twice (gap above keyboard).
+      const layoutShrunk = peakLayoutHeight - window.innerHeight > 80;
+      const isOpen = overlap > 40 || layoutShrunk;
+
+      if (!isOpen) {
+        peakLayoutHeight = window.innerHeight;
+      }
+
+      setState({
+        offset: layoutShrunk ? 0 : overlap,
+        isOpen,
+      });
     };
 
     compute();
@@ -52,5 +71,5 @@ export function useKeyboardInset() {
     };
   }, []);
 
-  return inset;
+  return state;
 }

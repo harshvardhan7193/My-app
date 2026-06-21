@@ -84,7 +84,7 @@ const Chat = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     typeof document !== 'undefined' && document.body.classList.contains('dark-mode')
   );
-  const keyboardInset = useKeyboardInset();
+  const { offset: keyboardOffset, isOpen: isKeyboardOpen } = useKeyboardInset();
   const inputAreaRef = useRef(null);
   const [inputAreaHeight, setInputAreaHeight] = useState(96);
 
@@ -129,9 +129,9 @@ const Chat = () => {
 
   // When the keyboard opens, keep the latest messages in view.
   useEffect(() => {
-    if (keyboardInset <= 0) return;
+    if (!isKeyboardOpen) return;
     requestAnimationFrame(() => scrollToBottom('auto'));
-  }, [keyboardInset]);
+  }, [isKeyboardOpen]);
 
   useLayoutEffect(() => {
     if (!messages.length) return;
@@ -1130,20 +1130,20 @@ const Chat = () => {
           marginRight: 'auto',
           width: '100%',
           maxWidth: '430px',
-          bottom: keyboardInset,
+          bottom: keyboardOffset,
           // When the keyboard is open, sit flush against it — no extra safe-area
           // padding (that only applies when the keyboard is hidden).
-          padding: keyboardInset > 0
+          padding: isKeyboardOpen
             ? '6px 12px 4px'
             : '0px 16px calc(10px + var(--app-pad-bottom, 0px)) 16px',
           boxSizing: 'border-box',
           zIndex: 40,
-          transition: KEYBOARD_TRANSITION,
+          transition: `bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1), padding 0.28s cubic-bezier(0.32, 0.72, 0, 1)`,
           display: 'flex',
           flexDirection: 'column',
-          background: keyboardInset > 0 ? 'var(--header-bg)' : 'transparent',
-          backdropFilter: keyboardInset > 0 ? 'blur(12px)' : 'none',
-          borderTop: keyboardInset > 0 ? '1px solid var(--border-light)' : 'none',
+          background: isKeyboardOpen ? 'var(--header-bg)' : 'transparent',
+          backdropFilter: isKeyboardOpen ? 'blur(12px)' : 'none',
+          borderTop: isKeyboardOpen ? '1px solid var(--border-light)' : 'none',
         }}
       >
         <AnimatePresence>
@@ -1281,7 +1281,7 @@ const Chat = () => {
               color: 'white',
               cursor: 'pointer',
               boxShadow: '0 4px 14px rgba(255, 183, 197, 0.45)',
-              marginBottom: keyboardInset > 0 ? '2px' : '0',
+              marginBottom: isKeyboardOpen ? '2px' : '0',
             }}
           >
             <Send size={20} />
@@ -1377,7 +1377,7 @@ const Chat = () => {
             onClick={handleScrollToBottom}
             style={{
               position: 'absolute',
-              bottom: `calc(${inputAreaHeight + 20}px + ${keyboardInset}px)`,
+              bottom: `calc(${inputAreaHeight + 20}px + ${keyboardOffset}px)`,
               right: '20px',
               width: '40px',
               height: '40px',
@@ -1407,7 +1407,7 @@ const Chat = () => {
             exit={{ opacity: 0, y: 50 }}
             style={{
               position: 'fixed',
-              bottom: `calc(${inputAreaHeight + 12}px + ${keyboardInset}px)`,
+              bottom: `calc(${inputAreaHeight + 12}px + ${keyboardOffset}px)`,
               left: 0,
               right: 0,
               marginLeft: 'auto',
