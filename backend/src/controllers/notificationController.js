@@ -73,7 +73,7 @@ export const sendChatNotification = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Chat notification triggered' });
 });
 
-// @desc    Mark chat message as delivered (called by service worker)
+// @desc    Mark chat message as delivered (called by service worker / native FCM)
 // @route   POST /api/notifications/chat-delivered
 export const markChatDelivered = asyncHandler(async (req, res) => {
   const { messageId, coupleId } = req.body;
@@ -81,13 +81,26 @@ export const markChatDelivered = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Missing messageId or coupleId' });
   }
 
-  // Import admin directly to update the realtime database
   const admin = (await import('../config/firebase.js')).default;
   const db = admin.database();
-  
-  await db.ref(`chats/${coupleId}/messages/${messageId}`).update({
+  const ref = db.ref(`chats/${coupleId}/messages/${messageId}`);
+
+  const snap = await ref.once('value');
+  if (!snap.exists()) {
+    return res.status(404).json({ message: 'Message not found' });
+  }
+
+  const current = snap.val()?.status;
+  if (current === 'read') {
+    return res.status(200).json({ message: 'Already read' });
+  }
+  if (current === 'delivered') {
+    return res.status(200).json({ message: 'Already delivered' });
+  }
+
+  await ref.update({
     status: 'delivered',
-    deliveredAt: admin.database.ServerValue.TIMESTAMP
+    deliveredAt: admin.database.ServerValue.TIMESTAMP,
   });
 
   res.status(200).json({ message: 'Marked as delivered' });

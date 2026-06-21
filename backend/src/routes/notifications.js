@@ -5,11 +5,13 @@ import { adminOnly } from '../middleware/adminAuth.js';
 
 const router = Router();
 
+// Public — service worker / native FCM ack (no auth token available)
+router.post('/chat-delivered', markChatDelivered);
+
 router.use(protect, injectCoupleId);
 
 // User-facing routes
 router.post('/chat-push', sendChatNotification);
-router.post('/chat-delivered', markChatDelivered);
 router.post('/nudge', sendNudge);
 router.get('/mine', getMyNotifications);
 router.get('/unread-count', getUnreadNotificationCount);
