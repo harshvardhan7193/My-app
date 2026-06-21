@@ -118,6 +118,11 @@ body.dark-mode .muted-lavender-bg { background-color: #1E1B24; }
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -140,7 +145,8 @@ body {
 input,
 textarea,
 select {
-  font-size: 16px;
+  font-size: 16px !important;
+  touch-action: manipulation;
 }
 
 h1, h2, h3, h4 {

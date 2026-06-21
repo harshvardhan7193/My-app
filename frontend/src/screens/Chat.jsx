@@ -1122,8 +1122,12 @@ const Chat = () => {
         ref={inputAreaRef}
         style={{
           position: 'fixed',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          // Center without transform — translateX on a fixed ancestor makes
+          // Android WebView zoom the whole page when the text input focuses.
+          left: 0,
+          right: 0,
+          marginLeft: 'auto',
+          marginRight: 'auto',
           width: '100%',
           maxWidth: '430px',
           bottom: keyboardInset,
@@ -1404,8 +1408,12 @@ const Chat = () => {
             style={{
               position: 'fixed',
               bottom: `calc(${inputAreaHeight + 12}px + ${keyboardInset}px)`,
-              left: '50%',
-              transform: 'translateX(-50%)',
+              left: 0,
+              right: 0,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              width: 'fit-content',
+              maxWidth: 'calc(100% - 40px)',
               background: 'rgba(0,0,0,0.8)',
               color: 'white',
               padding: '12px 24px',

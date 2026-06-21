@@ -26,6 +26,14 @@ export function useKeyboardInset() {
         setInset(0);
         return;
       }
+      // If the browser bumped visualViewport.scale (common in Android WebView
+      // when focusing inputs), treat keyboard inset as zero — the zoom shim in
+      // bridge_script.dart will reset scale; animating bottom against a scaled
+      // viewport makes the whole chat look like it pinches in.
+      if (vv.scale > 1.01) {
+        setInset(0);
+        return;
+      }
       const next = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
       setInset(next);
     };
