@@ -27,6 +27,9 @@ const PhotoView = () => {
   const [showControls, setShowControls] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
   const videoRef = useRef(null);
+  const swipeTouchStart = useRef({ x: 0, y: 0 });
+
+  const canSwipe = photosList.length > 1 && !isChatMedia;
 
   useEffect(() => {
     if (!showControls) return;
@@ -184,6 +187,10 @@ const PhotoView = () => {
   const returnPath = isChatMedia ? '/chat' : (albumId ? `/album/${albumId}` : '/gallery');
 
   useEffect(() => {
+    setIsZoomed(false);
+  }, [id]);
+
+  useEffect(() => {
     const fetchPhoto = async () => {
       try {
         // Only set full loading spinner on initial mount (when list is empty)
@@ -337,16 +344,65 @@ const PhotoView = () => {
   };
 
   const handleDragEnd = (event, info) => {
-    const swipeThreshold = 50; // offset in pixels to trigger swipe
+    if (isZoomed || !canSwipe) return;
+    const swipeThreshold = 50;
+    const velocityThreshold = 350;
     const offset = info.offset.x;
-    
-    if (offset < -swipeThreshold) {
-      // Swiped Left -> Go to Next Photo
+    const velocity = info.velocity.x;
+
+    if (offset < -swipeThreshold || velocity < -velocityThreshold) {
       handleSwipe(1);
-    } else if (offset > swipeThreshold) {
-      // Swiped Right -> Go to Previous Photo
+    } else if (offset > swipeThreshold || velocity > velocityThreshold) {
       handleSwipe(-1);
     }
+  };
+
+  const handleSwipeTouchStart = (e) => {
+    if (isZoomed || !canSwipe) return;
+    const t = e.touches[0];
+    swipeTouchStart.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleSwipeTouchEnd = (e) => {
+    if (isZoomed || !canSwipe) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeTouchStart.current.x;
+    const dy = t.clientY - swipeTouchStart.current.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    handleSwipe(dx < 0 ? 1 : -1);
+  };
+
+  const swipeShellProps = {
+    custom: swipeDirection,
+    variants: slideVariants,
+    initial: 'enter',
+    animate: 'center',
+    exit: 'exit',
+    drag: canSwipe && !isZoomed ? 'x' : false,
+    dragConstraints: { left: 0, right: 0 },
+    dragElastic: 0.55,
+    dragMomentum: false,
+    onDragEnd: handleDragEnd,
+    onTouchStart: handleSwipeTouchStart,
+    onTouchEnd: handleSwipeTouchEnd,
+    style: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      touchAction: isZoomed ? 'none' : 'pan-x pan-y',
+    },
+  };
+
+  const zoomWrapperProps = {
+    onTransformed: (ref) => setIsZoomed(ref.state.scale > 1.05),
+    panning: { disabled: !isZoomed },
+    pinch: { disabled: false },
+    wheel: { disabled: true },
+    doubleClick: { disabled: false },
   };
 
   const handleToggleLike = async () => {
@@ -472,29 +528,13 @@ const PhotoView = () => {
         </div>
       </div>
 
-      {/* Main Image Container */}
-      <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'pan-y', overflow: 'hidden' }}>
+      {/* Main Image Container — pan-y was blocking horizontal swipes in WebView */}
+      <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', overflow: 'hidden' }}>
         <AnimatePresence initial={false} custom={swipeDirection}>
           {imageUrl ? (
              meta?.mediaType === 'video' || imageUrl.match(/\.(mp4|webm|mov|avi|ogg)/i) || imageUrl.includes('/video/upload/') ? (
-               <motion.div 
-                 key={id}
-                 custom={swipeDirection}
-                 variants={slideVariants}
-                 initial="enter"
-                 animate="center"
-                 exit="exit"
-                 style={{ 
-                   position: 'absolute',
-                   width: '100%', 
-                   height: '100%', 
-                   display: 'flex', 
-                   alignItems: 'center', 
-                   justifyContent: 'center',
-                   overflow: 'hidden'
-                 }}
-               >
-              <TransformWrapper onTransformed={(ref) => setIsZoomed(ref.state.scale > 1.05)} disabled={false}>
+               <motion.div key={id} {...swipeShellProps} onTap={handleContainerTap}>
+              <TransformWrapper {...zoomWrapperProps}>
                 <TransformComponent wrapperStyle={{ width: '100%', height: '100%', zIndex: 2 }} contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                  <motion.video 
                    ref={videoRef}
@@ -504,15 +544,6 @@ const PhotoView = () => {
                    playsInline
                    onTimeUpdate={handleTimeUpdate}
                    onLoadedMetadata={handleLoadedMetadata}
-                   onTap={(e) => {
-                     // If clicking directly on the video, toggle controls
-                     handleContainerTap();
-                   }}
-                   drag={!isZoomed ? "x" : false}
-                   dragConstraints={{ left: 0, right: 0 }}
-                   dragElastic={0.6}
-                   onDragEnd={handleDragEnd}
-                   whileDrag={!isZoomed ? { scale: 0.96 } : {}}
                    style={{ 
                      maxWidth: '100%', 
                      maxHeight: '80vh', 
@@ -520,7 +551,7 @@ const PhotoView = () => {
                      boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
                      outline: 'none',
                      cursor: isZoomed ? 'grab' : 'pointer',
-                     touchAction: 'none'
+                     touchAction: 'none',
                    }} 
                  />
                 </TransformComponent>
@@ -679,33 +710,23 @@ const PhotoView = () => {
                  </AnimatePresence>
                </motion.div>
             ) : (
-              <TransformWrapper onTransformed={(ref) => setIsZoomed(ref.state.scale > 1.05)} disabled={false}>
+              <motion.div key={id} {...swipeShellProps} onDoubleClick={handleToggleLike}>
+              <TransformWrapper {...zoomWrapperProps}>
                 <TransformComponent wrapperStyle={{ width: '100%', height: '100%', zIndex: 2 }} contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <motion.img 
-                    key={id}
-                    custom={swipeDirection}
-                    variants={slideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
                     src={imageUrl}
-                    onDoubleClick={handleToggleLike}
-                    drag={!isZoomed ? "x" : false}
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.6}
-                    onDragEnd={handleDragEnd}
-                    whileDrag={!isZoomed ? { scale: 0.96 } : {}}
                     style={{ 
                       maxWidth: '100%', 
                       maxHeight: '80vh', 
                       objectFit: 'contain',
                       boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
                       cursor: isZoomed ? 'grab' : 'grab',
-                      touchAction: 'none'
+                      touchAction: 'none',
                     }} 
                   />
                 </TransformComponent>
               </TransformWrapper>
+              </motion.div>
             )
           ) : (
             <span style={{ color: 'white' }}>No image found</span>
