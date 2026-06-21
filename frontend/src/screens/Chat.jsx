@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Camera, Image as ImageIcon, Play, FileText, Music2, Download, ExternalLink, Reply, Check, CheckCheck, Copy, Info, Edit2 } from 'lucide-react';
+import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, ChevronLeft, X, ChevronUp, ChevronDown, Play, FileText, Music2, Download, ExternalLink, Reply, Check, CheckCheck, Copy, Info, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
@@ -74,7 +74,6 @@ const Chat = () => {
   const [highlightedId, setHighlightedId] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
-  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [replyToMsg, setReplyToMsg] = useState(null);
   const [editingMsg, setEditingMsg] = useState(null);
   const [floatingHearts, setFloatingHearts] = useState([]);
@@ -85,29 +84,9 @@ const Chat = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     typeof document !== 'undefined' && document.body.classList.contains('dark-mode')
   );
-  const [bgSize, setBgSize] = useState({ 
-    height: typeof window !== 'undefined' ? window.innerHeight : 800,
-    width: typeof window !== 'undefined' ? window.innerWidth : 400
-  });
   const keyboardInset = useKeyboardInset();
   const inputAreaRef = useRef(null);
   const [inputAreaHeight, setInputAreaHeight] = useState(96);
-
-  // Keep the chat wallpaper stable — only react to width/orientation changes,
-  // not keyboard height (keyboard is handled via useKeyboardInset).
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const handleResize = () => {
-      setBgSize((prev) => {
-        if (prev.width !== window.innerWidth) {
-          return { height: window.innerHeight, width: window.innerWidth };
-        }
-        return prev;
-      });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Measure the fixed input bar so the message list reserves the right space.
   useEffect(() => {
@@ -123,7 +102,6 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
   const textInputRef = useRef(null);
   const didInitialScrollRef = useRef(false);
   const processedMessageIdsRef = useRef(new Set());
@@ -613,7 +591,6 @@ const Chat = () => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file || !me?.coupleId) return;
-    setShowAttachmentMenu(false);
     const mimeType = file.type || '';
     const isImage = mimeType.startsWith('image/');
     const isVideo = mimeType.startsWith('video/');
@@ -747,25 +724,15 @@ const Chat = () => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: 'transparent',
         overflow: 'hidden',
-        position: 'relative'
-      }}
-    >
-      {/* Fixed Background Layer to prevent shifting on keyboard open */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: `${bgSize.height}px`,
+        position: 'relative',
         backgroundColor: 'var(--chat-bg)',
         backgroundImage: `linear-gradient(${isDarkMode ? 'rgba(0,0,0,0.45), rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.25), rgba(255,255,255,0.25)'}), url("${isDarkMode ? chatBgDark : chatBgLight}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        zIndex: -1,
-        pointerEvents: 'none'
-      }} />
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       {/* Chat Header */}
       <div style={{
         padding: '20px',
@@ -1160,12 +1127,19 @@ const Chat = () => {
           width: '100%',
           maxWidth: '430px',
           bottom: keyboardInset,
-          padding: '0px 20px calc(24px + var(--app-pad-bottom, 0px)) 20px',
+          // When the keyboard is open, sit flush against it — no extra safe-area
+          // padding (that only applies when the keyboard is hidden).
+          padding: keyboardInset > 0
+            ? '6px 12px 4px'
+            : '0px 16px calc(10px + var(--app-pad-bottom, 0px)) 16px',
           boxSizing: 'border-box',
           zIndex: 40,
           transition: KEYBOARD_TRANSITION,
           display: 'flex',
           flexDirection: 'column',
+          background: keyboardInset > 0 ? 'var(--header-bg)' : 'transparent',
+          backdropFilter: keyboardInset > 0 ? 'blur(12px)' : 'none',
+          borderTop: keyboardInset > 0 ? '1px solid var(--border-light)' : 'none',
         }}
       >
         <AnimatePresence>
@@ -1229,82 +1203,85 @@ const Chat = () => {
             </div>
           </div>
         )}
-        <div className="premium-card" style={{
-          position: 'relative',
-          zIndex: 2,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '8px 12px 8px 16px',
-          borderRadius: '100px',
-          backgroundColor: 'var(--card-bg)'
-        }}>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="*/*"
-            style={{ display: 'none' }}
-          />
-          <input
-            type="file"
-            ref={cameraInputRef}
-            onChange={handleFileUpload}
-            accept="*/*"
-            capture="environment"
-            style={{ display: 'none' }}
-          />
-          <motion.div
-            whileTap={{ scale: 0.9 }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '4px', cursor: 'pointer' }}
-            onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-          >
-            <Paperclip size={20} color="var(--text-muted)" />
-          </motion.div>
-          <input
-            type="text"
-            ref={textInputRef}
-            placeholder="Type a love note..."
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            onFocus={() => requestAnimationFrame(() => scrollToBottom('auto'))}
-            style={{
-              flex: 1,
-              border: 'none',
-              outline: 'none',
-              fontSize: '15px',
-              fontFamily: 'var(--font-body)',
-              background: 'transparent',
-              color: 'var(--text-main)'
-            }}
-          />
-          <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
+          <div className="premium-card" style={{
+            flex: 1,
+            minWidth: 0,
+            position: 'relative',
+            zIndex: 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 12px 6px 14px',
+            borderRadius: '100px',
+            backgroundColor: 'var(--card-bg)',
+            marginBottom: 0,
+          }}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*,video/*,audio/*,*/*"
+              style={{ display: 'none' }}
+            />
+            <motion.div
+              whileTap={{ scale: 0.9 }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '4px', cursor: 'pointer' }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip size={20} color="var(--text-muted)" />
+            </motion.div>
+            <input
+              type="text"
+              ref={textInputRef}
+              placeholder="Type a love note..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              onFocus={() => requestAnimationFrame(() => scrollToBottom('auto'))}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: 'none',
+                outline: 'none',
+                fontSize: '15px',
+                fontFamily: 'var(--font-body)',
+                background: 'transparent',
+                color: 'var(--text-main)',
+              }}
+            />
             <motion.div
               whileTap={{ scale: 0.9 }}
               onClick={sendHeart}
-              style={{ padding: '8px', color: 'var(--blush-pink)', cursor: 'pointer' }}
+              style={{ padding: '6px', color: 'var(--blush-pink)', cursor: 'pointer', flexShrink: 0 }}
             >
               <Heart size={20} fill="var(--blush-pink)" />
             </motion.div>
-            <motion.div
-              whileTap={{ scale: 0.9 }}
-              onClick={handleSendMessage}
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '20px',
-                backgroundColor: 'var(--blush-pink)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                cursor: 'pointer'
-              }}
-            >
-              <Send size={18} />
-            </motion.div>
           </div>
+
+          {/* Send — separate circle outside the text field (WhatsApp-style). */}
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={handleSendMessage}
+            style={{
+              flexShrink: 0,
+              width: '48px',
+              height: '48px',
+              borderRadius: '24px',
+              border: 'none',
+              backgroundColor: 'var(--blush-pink)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(255, 183, 197, 0.45)',
+              marginBottom: keyboardInset > 0 ? '2px' : '0',
+            }}
+          >
+            <Send size={20} />
+          </motion.button>
         </div>
       </div>
 
@@ -1362,57 +1339,6 @@ const Chat = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showAttachmentMenu && (
-          <>
-            <div
-              style={{ position: 'fixed', inset: 0, zIndex: 90 }}
-              onClick={() => setShowAttachmentMenu(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.9 }}
-              style={{
-                position: 'fixed',
-                bottom: `calc(80px + ${keyboardInset}px + var(--app-pad-bottom, 0px))`,
-                left: '20px',
-                background: 'var(--menu-bg)',
-                borderRadius: '16px',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                padding: '8px',
-                width: '150px',
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-                transition: KEYBOARD_TRANSITION,
-              }}
-            >
-              <div
-                onClick={() => cameraInputRef.current?.click()}
-                style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
-                className="hover-bg-soft"
-              >
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#e3f2fd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Camera size={18} color="#2196f3" />
-                </div>
-                <span style={{ fontSize: '14px', fontWeight: 500 }}>Camera</span>
-              </div>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '10px' }}
-                className="hover-bg-soft"
-              >
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#f3e5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ImageIcon size={18} color="#9c27b0" />
-                </div>
-                <span style={{ fontSize: '14px', fontWeight: 500 }}>Gallery</span>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
         {floatingHearts.map((h) => (
           <motion.div
             key={h.id}
@@ -1447,7 +1373,7 @@ const Chat = () => {
             onClick={handleScrollToBottom}
             style={{
               position: 'absolute',
-              bottom: `calc(120px + ${keyboardInset}px)`,
+              bottom: `calc(${inputAreaHeight + 20}px + ${keyboardInset}px)`,
               right: '20px',
               width: '40px',
               height: '40px',
@@ -1477,7 +1403,7 @@ const Chat = () => {
             exit={{ opacity: 0, y: 50 }}
             style={{
               position: 'fixed',
-              bottom: `calc(100px + ${keyboardInset}px)`,
+              bottom: `calc(${inputAreaHeight + 12}px + ${keyboardInset}px)`,
               left: '50%',
               transform: 'translateX(-50%)',
               background: 'rgba(0,0,0,0.8)',
