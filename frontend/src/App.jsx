@@ -30,6 +30,7 @@ import RoutePersister from './components/RoutePersister';
 import ShareIntentListener from './components/ShareIntentListener';
 import OfflineBanner from './components/OfflineBanner';
 import { isAppOffline } from './utils/offlineCache';
+import useViewportLayout from './hooks/useViewportLayout';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/screens/AdminDashboard';
 import UserManagement from './admin/screens/UserManagement';
@@ -162,6 +163,7 @@ const PathTracker = () => {
 const App = () => {
   const [bootstrapped, setBootstrapped] = useState(false);
   const [preferredTheme, setPreferredTheme] = useState('light');
+  useViewportLayout();
   
   // Call useNotifications hook. It will auto-register if permission was already granted,
   // and do nothing if not authenticated yet.
@@ -431,11 +433,11 @@ const RequireAdmin = ({ children }) => {
 
 const WithNav = ({ children }) => (
   <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-    <div style={{ 
-      flex: 1, 
-      overflowY: 'auto', 
-      paddingBottom: 'calc(70px + var(--app-pad-bottom, 0px))', 
-      WebkitOverflowScrolling: 'touch' 
+    <div style={{
+      flex: 1,
+      overflowY: 'auto',
+      paddingBottom: 'calc(70px + var(--app-pad-bottom, 0px))',
+      WebkitOverflowScrolling: 'touch',
     }} className="hide-scrollbar">
       {children}
     </div>

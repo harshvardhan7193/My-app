@@ -182,7 +182,7 @@ const Dashboard = () => {
           className="premium-card"
           style={{
             padding: 0,
-            height: '380px',
+            height: 'min(380px, calc(var(--aura-vh, 100dvh) * 0.44))',
             position: 'relative',
             overflow: 'hidden',
             marginBottom: '32px',

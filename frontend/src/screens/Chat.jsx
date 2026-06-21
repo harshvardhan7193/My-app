@@ -1185,7 +1185,7 @@ const Chat = () => {
         style={{
           flexShrink: 0,
           width: '100%',
-          padding: composerActive ? '6px 12px 4px' : '0px 12px 0',
+          padding: composerActive ? '6px 12px max(4px, env(safe-area-inset-bottom, 0px))' : '0px 12px 0',
           boxSizing: 'border-box',
           zIndex: 40,
           display: 'flex',

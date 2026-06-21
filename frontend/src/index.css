@@ -47,11 +47,15 @@
   --dark-border: rgba(255, 255, 255, 0.05);
   --dark-glow: rgba(244, 211, 211, 0.1);
 
-  /* Consumer (mobile) app frame padding. Uses iOS safe-area when present,
-     otherwise falls back to a fixed visual gap so the app never sits flush
-     against the device edge inside the Flutter WebView. */
-  --app-pad-top: max(env(safe-area-inset-top, 0px), 16px);
-  --app-pad-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  /* Consumer (mobile) app frame padding — overridden at runtime by
+     viewportLayout.js from native safe-area + screen width. */
+  --app-pad-top: max(env(safe-area-inset-top, 0px), 12px);
+  --app-pad-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+
+  /* Dynamic viewport (set by viewportLayout.js + Flutter bridge) */
+  --aura-vh: 100dvh;
+  --aura-vw: 100vw;
+  --aura-scale: 1;
 }
 
 body.dark-mode {
@@ -174,10 +178,11 @@ h1, h2, h3, h4 {
 
 .mobile-container {
   width: 100%;
-  max-width: 430px;
+  max-width: min(430px, 100%);
   margin: 0 auto;
   height: 100%;
   min-height: 0;
+  max-height: var(--aura-vh, 100dvh);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -185,6 +190,20 @@ h1, h2, h3, h4 {
   background-color: var(--warm-white);
   padding-top: var(--app-pad-top);
   padding-bottom: var(--app-pad-bottom);
+}
+
+html.aura-compact .mobile-container {
+  padding-top: max(var(--aura-safe-top, env(safe-area-inset-top, 0px)), 8px);
+  padding-bottom: max(var(--aura-safe-bottom, env(safe-area-inset-bottom, 0px)), 8px);
+}
+
+html.aura-compact h2 {
+  font-size: calc(1.35rem * var(--aura-scale, 1));
+}
+
+html.aura-keyboard-open .glass-nav {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .glass-nav {
