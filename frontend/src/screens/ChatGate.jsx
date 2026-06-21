@@ -66,7 +66,7 @@ const ChatGate = () => {
     }
   }, [phase]);
 
-  if (phase === 'open') return <Chat />;
+  if (phase === 'open') return <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}><Chat /></div>;
 
   const opening = phase === 'opening' || phase === 'flash';
   const flashing = phase === 'flash';
