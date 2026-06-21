@@ -800,7 +800,7 @@ const Chat = () => {
                   setCurrentResultIndex(-1);
                 }}
                 onKeyPress={handleSearch}
-                style={{ flex: 1, border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--text-main)' }}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: '16px', background: 'transparent', color: 'var(--text-main)' }}
               />
 
               {searchResults.length > 0 && (
@@ -1244,7 +1244,7 @@ const Chat = () => {
                 minWidth: 0,
                 border: 'none',
                 outline: 'none',
-                fontSize: '15px',
+                fontSize: '16px',
                 fontFamily: 'var(--font-body)',
                 background: 'transparent',
                 color: 'var(--text-main)',

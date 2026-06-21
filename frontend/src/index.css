@@ -135,6 +135,14 @@ body {
   line-height: 1.5;
 }
 
+/* Android/iOS WebView auto-zooms focused inputs when font-size < 16px.
+   Keep form fields at 16px+ so the keyboard doesn't pinch-zoom the page. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
 h1, h2, h3, h4 {
   font-family: var(--font-main);
   font-weight: 600;
