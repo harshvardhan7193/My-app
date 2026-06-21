@@ -17,6 +17,7 @@ export function applyViewportMetrics(native = null) {
   const metrics = native || window.__auraNativeMetrics || null;
   const safeTop = metrics?.safeTop ?? 0;
   const safeBottom = metrics?.safeBottom ?? 0;
+  const nativeKeyboard = Number(metrics?.keyboard) || 0;
 
   // Always use live inner dimensions — native inject holds full-screen height
   // and must NOT override layout when adjustResize shrinks the WebView for IME.
@@ -30,7 +31,9 @@ export function applyViewportMetrics(native = null) {
   root.style.setProperty('--aura-vv-w', `${vvW}px`);
   root.style.setProperty('--aura-vv-top', `${vvTop}px`);
 
-  const keyboard = Math.max(0, Math.round(layoutH - vvH - vvTop));
+  const keyboard = nativeKeyboard > 0
+    ? Math.round(nativeKeyboard)
+    : Math.max(0, Math.round(layoutH - vvH - vvTop));
   root.style.setProperty('--aura-keyboard', `${keyboard}px`);
   root.classList.toggle('aura-keyboard-open', keyboard > 48);
 

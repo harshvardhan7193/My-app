@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 
-// Easing used for the input bar slide — matches the hook's transition so
-// movement feels smooth even when Android WebView reports keyboard open/close
-// in a single instant frame (common in Flutter APK wrappers).
 export const KEYBOARD_TRANSITION = 'bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
 
+function readCssKeyboard() {
+  if (typeof document === 'undefined') return 0;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--aura-keyboard');
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 /**
- * Tracks keyboard state for a hybrid Flutter WebView + SPA chat input.
+ * Tracks keyboard inset for a fixed chat composer in the Flutter WebView shell.
  *
- * Returns:
- *   offset — CSS `bottom` value for a `position: fixed` input bar.
- *            Only non-zero when the layout viewport stays full-height
- *            (adjustNothing + overlays-content). When Android adjustResize
- *            shrinks the layout, offset is forced to 0 to avoid double-lift.
- *   isOpen — whether the keyboard (or bottom chrome) is covering the screen.
+ * Prefers native `viewInsets.bottom` injected by Flutter, then CSS `--aura-keyboard`,
+ * then visualViewport overlap. When adjustResize already shrinks innerHeight, offset
+ * is forced to 0 so the composer is not lifted twice.
  */
 export function useKeyboardInset() {
   const [state, setState] = useState({ offset: 0, isOpen: false });
@@ -25,34 +26,28 @@ export function useKeyboardInset() {
 
     const compute = () => {
       const vv = window.visualViewport;
-      if (!vv) {
-        setState({ offset: 0, isOpen: false });
-        return;
-      }
+      const nativeKb = Number(window.__auraNativeMetrics?.keyboard) || 0;
+      const cssKb = readCssKeyboard();
 
-      if (vv.scale > 1.01) {
-        setState({ offset: 0, isOpen: false });
-        return;
+      let overlap = 0;
+      if (vv && vv.scale <= 1.01) {
+        overlap = Math.max(
+          0,
+          Math.round(window.innerHeight - vv.height - (vv.offsetTop || 0)),
+        );
       }
 
       peakLayoutHeight = Math.max(peakLayoutHeight, window.innerHeight);
-
-      const overlap = Math.max(
-        0,
-        Math.round(window.innerHeight - vv.height - vv.offsetTop),
-      );
-
-      // adjustResize + resizes-content shrinks innerHeight with the keyboard.
-      // Applying overlap on top would lift the input twice (gap above keyboard).
       const layoutShrunk = peakLayoutHeight - window.innerHeight > 80;
-      const isOpen = overlap > 40 || layoutShrunk;
+      const keyboardHeight = Math.max(nativeKb, cssKb, overlap);
+      const isOpen = keyboardHeight > 48 || layoutShrunk;
 
       if (!isOpen) {
         peakLayoutHeight = window.innerHeight;
       }
 
       setState({
-        offset: layoutShrunk ? 0 : overlap,
+        offset: layoutShrunk ? 0 : keyboardHeight,
         isOpen,
       });
     };
@@ -62,10 +57,14 @@ export function useKeyboardInset() {
     const vv = window.visualViewport;
     vv?.addEventListener('resize', compute);
     window.addEventListener('resize', compute);
+    document.addEventListener('focusin', compute, true);
+    document.addEventListener('focusout', compute, true);
 
     return () => {
       vv?.removeEventListener('resize', compute);
       window.removeEventListener('resize', compute);
+      document.removeEventListener('focusin', compute, true);
+      document.removeEventListener('focusout', compute, true);
     };
   }, []);
 

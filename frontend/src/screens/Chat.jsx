@@ -4,6 +4,7 @@ import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, Chevro
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import useOnlineStatus from '../hooks/useOnlineStatus';
+import { useKeyboardInset, KEYBOARD_TRANSITION } from '../hooks/useKeyboardInset';
 import { putCache, getCache, isAppOffline } from '../utils/offlineCache';
 import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
@@ -88,6 +89,8 @@ const Chat = () => {
   );
   const [composerActive, setComposerActive] = useState(false);
   const inputAreaRef = useRef(null);
+  const { offset: kbOffset, isOpen: kbOpen } = useKeyboardInset();
+  const [composerH, setComposerH] = useState(64);
 
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -133,9 +136,20 @@ const Chat = () => {
 
   // Keep the latest messages visible when the composer is focused.
   useEffect(() => {
-    if (!composerActive) return;
+    if (!composerActive && !kbOpen) return;
     requestAnimationFrame(() => scrollToBottom('auto'));
-  }, [composerActive]);
+  }, [composerActive, kbOpen]);
+
+  useLayoutEffect(() => {
+    const el = inputAreaRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([entry]) => {
+      setComposerH(Math.ceil(entry.contentRect.height) || 64);
+    });
+    ro.observe(el);
+    setComposerH(el.offsetHeight || 64);
+    return () => ro.disconnect();
+  }, [composerActive, replyToMsg, editingMsg, uploadProgress]);
 
   useLayoutEffect(() => {
     if (!messages.length) return;
@@ -756,6 +770,8 @@ const Chat = () => {
         flexDirection: 'column',
         overflow: 'hidden',
         position: 'relative',
+        paddingBottom: kbOpen && kbOffset > 0 ? kbOffset : 0,
+        transition: kbOpen ? KEYBOARD_TRANSITION : undefined,
         backgroundColor: 'var(--chat-bg)',
         backgroundImage: `linear-gradient(${isDarkMode ? 'rgba(0,0,0,0.45), rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.25), rgba(255,255,255,0.25)'}), url("${isDarkMode ? chatBgDark : chatBgLight}")`,
         backgroundSize: 'cover',
@@ -857,7 +873,7 @@ const Chat = () => {
           flex: 1,
           minHeight: 0,
           padding: '20px',
-          paddingBottom: '20px',
+          paddingBottom: `${composerH + 24}px`,
           overflowY: 'auto',
           position: 'relative',
         }}
@@ -1176,17 +1192,23 @@ const Chat = () => {
         </AnimatePresence>
       </div>
 
-      {/* Composer — flex child (not position:fixed). With adjustResize the whole
-          chat column shrinks above the keyboard so nothing needs manual inset
-          or viewport scale compensation. */}
+      {/* Composer — fixed above the keyboard; native inset from Flutter when
+          adjustResize does not shrink the WebView document in time. */}
       <div
         ref={inputAreaRef}
         style={{
-          flexShrink: 0,
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          maxWidth: 'min(430px, 100%)',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+          bottom: kbOpen && kbOffset > 0 ? `${kbOffset}px` : 'var(--app-pad-bottom, 0px)',
+          transition: KEYBOARD_TRANSITION,
           width: '100%',
           padding: composerActive ? '6px 12px max(4px, env(safe-area-inset-bottom, 0px))' : '0px 12px 0',
           boxSizing: 'border-box',
-          zIndex: 40,
+          zIndex: 50,
           display: 'flex',
           flexDirection: 'column',
           background: composerActive ? 'var(--header-bg)' : 'transparent',
