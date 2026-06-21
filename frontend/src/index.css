@@ -160,10 +160,6 @@ textarea,
 select {
   font-size: 16px !important;
   touch-action: manipulation;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-  transform: none !important;
-  zoom: 1;
 }
 
 h1, h2, h3, h4 {
