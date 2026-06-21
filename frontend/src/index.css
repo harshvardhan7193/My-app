@@ -201,18 +201,16 @@ html.aura-compact h2 {
   font-size: calc(1.35rem * var(--aura-scale, 1));
 }
 
+html.aura-chat-screen .mobile-container {
+  padding-bottom: 0;
+}
+
 html.aura-keyboard-open .glass-nav {
   display: none;
 }
 
 html.aura-keyboard-open .mobile-container {
   padding-bottom: 0;
-}
-
-html.aura-ime-open,
-html.aura-ime-open body {
-  overflow: hidden !important;
-  width: 100%;
 }
 
 .glass-nav {

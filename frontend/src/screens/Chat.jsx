@@ -4,7 +4,6 @@ import { Send, Mic, Heart, Paperclip, MoreVertical, Search, Phone, Video, Chevro
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import useOnlineStatus from '../hooks/useOnlineStatus';
-import { useKeyboardInset, KEYBOARD_TRANSITION } from '../hooks/useKeyboardInset';
 import { putCache, getCache, isAppOffline } from '../utils/offlineCache';
 import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText } from '../config/firebase';
 import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
@@ -89,8 +88,6 @@ const Chat = () => {
   );
   const [composerActive, setComposerActive] = useState(false);
   const inputAreaRef = useRef(null);
-  const kbOffset = useKeyboardInset(composerActive);
-  const [composerH, setComposerH] = useState(64);
 
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -134,22 +131,24 @@ const Chat = () => {
     [50, 150, 350, 600].forEach((ms) => setTimeout(jump, ms));
   }, []);
 
-  // Keep the latest messages visible when the composer is focused.
+  // Chat has no bottom nav — drop container bottom padding so the composer
+  // sits flush on the screen edge (WebView adjustResize handles the keyboard).
   useEffect(() => {
-    if (!composerActive && kbOffset <= 0) return;
-    requestAnimationFrame(() => scrollToBottom('auto'));
-  }, [composerActive, kbOffset]);
+    document.documentElement.classList.add('aura-chat-screen');
+    return () => document.documentElement.classList.remove('aura-chat-screen');
+  }, []);
 
-  useLayoutEffect(() => {
-    const el = inputAreaRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(([entry]) => {
-      setComposerH(Math.ceil(entry.contentRect.height) || 64);
-    });
-    ro.observe(el);
-    setComposerH(el.offsetHeight || 64);
-    return () => ro.disconnect();
-  }, [composerActive, replyToMsg, editingMsg, uploadProgress]);
+  // When the WebView resizes for the keyboard, keep the latest messages visible.
+  useEffect(() => {
+    if (!composerActive) return undefined;
+    const bump = () => requestAnimationFrame(() => scrollToBottom('auto'));
+    window.addEventListener('resize', bump);
+    window.visualViewport?.addEventListener('resize', bump);
+    return () => {
+      window.removeEventListener('resize', bump);
+      window.visualViewport?.removeEventListener('resize', bump);
+    };
+  }, [composerActive]);
 
   useLayoutEffect(() => {
     if (!messages.length) return;
@@ -871,7 +870,7 @@ const Chat = () => {
           flex: 1,
           minHeight: 0,
           padding: '20px',
-          paddingBottom: `${composerH + 24}px`,
+          paddingBottom: '20px',
           overflowY: 'auto',
           position: 'relative',
         }}
@@ -1190,32 +1189,21 @@ const Chat = () => {
         </AnimatePresence>
       </div>
 
-      {/* Composer — fixed above the keyboard; native inset from Flutter when
-          adjustResize does not shrink the WebView document in time. */}
+      {/* Composer — flex child at the bottom; Flutter adjustResize shrinks the
+          WebView so this stays directly above the keyboard with no JS inset. */}
       <div
         ref={inputAreaRef}
         style={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          maxWidth: 'min(430px, 100%)',
-          marginLeft: 'auto',
-          marginRight: 'auto',
-          bottom: composerActive && kbOffset > 48
-            ? `${kbOffset}px`
-            : 'var(--app-pad-bottom, 0px)',
-          transition: KEYBOARD_TRANSITION,
+          flexShrink: 0,
           width: '100%',
-          padding: composerActive
-            ? (kbOffset > 48 ? '6px 12px 4px' : '6px 12px max(4px, env(safe-area-inset-bottom, 0px))')
-            : '0px 12px 0',
+          padding: '8px 12px max(8px, env(safe-area-inset-bottom, 0px))',
           boxSizing: 'border-box',
-          zIndex: 50,
+          zIndex: 40,
           display: 'flex',
           flexDirection: 'column',
-          background: composerActive ? 'var(--header-bg)' : 'transparent',
-          backdropFilter: composerActive ? 'blur(12px)' : 'none',
-          borderTop: composerActive ? '1px solid var(--border-light)' : 'none',
+          background: 'var(--header-bg)',
+          backdropFilter: 'blur(12px)',
+          borderTop: '1px solid var(--border-light)',
         }}
       >
         <AnimatePresence>
@@ -1357,7 +1345,6 @@ const Chat = () => {
               color: 'white',
               cursor: 'pointer',
               boxShadow: '0 4px 14px rgba(255, 183, 197, 0.45)',
-              marginBottom: composerActive ? '2px' : '0',
             }}
           >
             <Send size={20} />
