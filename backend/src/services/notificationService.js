@@ -66,6 +66,13 @@ export const sendPushToUser = async (userId, payload, category = 'love', saveHis
       title: payload.title,
       body: payload.body,
     },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'aura_alerts_v1',
+        sound: 'ring',
+      },
+    },
     data: {
       category,
       ...payload.data
