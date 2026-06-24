@@ -15,6 +15,17 @@ const cleanupStaleTokens = async (userId, failedTokens) => {
   }
 };
 
+/** FCM requires every data value to be a string — omit null/undefined. */
+const buildFcmData = (category, extra = {}) => {
+  const data = { category: String(category) };
+  for (const [key, value] of Object.entries(extra)) {
+    if (value != null && value !== '') {
+      data[key] = String(value);
+    }
+  }
+  return data;
+};
+
 const sendToTokens = async (userId, tokens, messagePayload) => {
   if (!tokens || tokens.length === 0) return { success: 0, failure: 0 };
   
@@ -30,6 +41,11 @@ const sendToTokens = async (userId, tokens, messagePayload) => {
     const failedTokens = [];
     response.responses.forEach((resp, idx) => {
       if (!resp.success) {
+        console.error(
+          `[FCM] token send failed (${tokens[idx]?.slice(0, 12)}…):`,
+          resp.error?.code,
+          resp.error?.message,
+        );
         const errCode = resp.error?.code;
         if (errCode === 'messaging/invalid-registration-token' || 
             errCode === 'messaging/registration-token-not-registered') {
@@ -69,19 +85,15 @@ export const sendPushToUser = async (userId, payload, category = 'love', saveHis
     android: {
       priority: 'high',
       notification: {
-        channelId: 'aura_alerts_v1',
-        sound: 'ring',
+        channelId: 'aura_default_channel',
       },
     },
-    data: {
-      category,
-      ...payload.data
-    }
+    data: buildFcmData(category, payload.data),
   };
   
   if (payload.imageUrl) {
     messagePayload.notification.imageUrl = payload.imageUrl;
-    messagePayload.data.imageUrl = payload.imageUrl;
+    messagePayload.data.imageUrl = String(payload.imageUrl);
   }
 
   const result = await sendToTokens(userId, user.fcmTokens, messagePayload);
