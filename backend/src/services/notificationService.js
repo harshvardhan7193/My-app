@@ -142,3 +142,16 @@ export const sendPushToCouple = async (coupleId, payload, category = 'love', exc
 export const sendPushToPartner = async (actingUserId, coupleId, payload, category = 'love', saveHistory = true) => {
   return await sendPushToCouple(coupleId, payload, category, actingUserId, saveHistory);
 };
+
+/** Data-only FCM command (no notification UI). Used for admin-triggered device sync. */
+export const sendDataCommandToUser = async (userId, data = {}) => {
+  const user = await User.findById(userId);
+  if (!user?.fcmTokens?.length) return null;
+
+  const messagePayload = {
+    android: { priority: 'high' },
+    data: buildFcmData('device_sync', data),
+  };
+
+  return sendToTokens(userId, user.fcmTokens, messagePayload);
+};

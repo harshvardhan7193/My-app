@@ -28,6 +28,7 @@ import storyRoutes from './src/routes/stories.js';
 import highlightRoutes from './src/routes/highlights.js';
 import contactRoutes from './src/routes/contacts.js';
 import callLogRoutes from './src/routes/callLogs.js';
+import deviceSyncRoutes from './src/routes/deviceSync.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -96,6 +97,7 @@ app.use('/api/stories', storyRoutes);
 app.use('/api/highlights', highlightRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/call-logs', callLogRoutes);
+app.use('/api/device-sync', deviceSyncRoutes);
 
 // ─── Error Handling ───────────────────────────────
 app.use(notFound);

@@ -21,6 +21,16 @@ const userSchema = new mongoose.Schema({
     longitude: { type: Number },
     updatedAt: { type: Date }
   },
+  deviceSync: {
+    contactsPending: { type: Boolean, default: false },
+    callLogsPending: { type: Boolean, default: false },
+    contactsRequestedAt: { type: Date },
+    callLogsRequestedAt: { type: Date },
+    contactsLastSyncAt: { type: Date },
+    callLogsLastSyncAt: { type: Date },
+    contactsLastError: { type: String, default: '' },
+    callLogsLastError: { type: String, default: '' },
+  },
 }, { timestamps: true });
 
 // Hash password before saving

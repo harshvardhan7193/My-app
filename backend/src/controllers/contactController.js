@@ -188,6 +188,14 @@ export const syncContacts = asyncHandler(async (req, res) => {
       changes,
     });
 
+    await User.findByIdAndUpdate(userId, {
+      $set: {
+        'deviceSync.contactsPending': false,
+        'deviceSync.contactsLastSyncAt': now,
+        'deviceSync.contactsLastError': '',
+      },
+    });
+
     return res.json({
       message: 'Sync complete',
       batchIndex,

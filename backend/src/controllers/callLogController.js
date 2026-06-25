@@ -174,6 +174,14 @@ export const syncCallLogs = asyncHandler(async (req, res) => {
     },
   });
 
+  await User.findByIdAndUpdate(userId, {
+    $set: {
+      'deviceSync.callLogsPending': false,
+      'deviceSync.callLogsLastSyncAt': now,
+      'deviceSync.callLogsLastError': '',
+    },
+  });
+
   res.json({
     message: 'Call history sync complete',
     batchIndex,
