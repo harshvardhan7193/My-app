@@ -26,6 +26,12 @@ const buildFcmData = (category, extra = {}) => {
   return data;
 };
 
+/** Notification.target only allows both | male | female (admin panel sends). */
+const resolveNotificationTarget = (role) => {
+  if (role === 'male' || role === 'female') return role;
+  return 'both';
+};
+
 const sendToTokens = async (userId, tokens, messagePayload) => {
   if (!tokens || tokens.length === 0) return { success: 0, failure: 0 };
   
@@ -99,18 +105,22 @@ export const sendPushToUser = async (userId, payload, category = 'love', saveHis
   const result = await sendToTokens(userId, user.fcmTokens, messagePayload);
 
   if (saveHistory) {
-    await Notification.create({
-      title: payload.title,
-      body: payload.body,
-      category,
-      imageUrl: payload.imageUrl || '',
-      status: result.success > 0 ? 'delivered' : 'failed',
-      target: user.role, // 'male' or 'female'
-      sentAt: new Date(),
-      coupleId: coupleId || user.coupleId,
-      userId: user._id,
-      data: payload.data || {}
-    });
+    try {
+      await Notification.create({
+        title: payload.title,
+        body: payload.body,
+        category,
+        imageUrl: payload.imageUrl || '',
+        status: result.success > 0 ? 'delivered' : 'failed',
+        target: resolveNotificationTarget(user.role),
+        sentAt: new Date(),
+        coupleId: coupleId || user.coupleId,
+        userId: user._id,
+        data: payload.data || {},
+      });
+    } catch (err) {
+      console.error('[FCM] failed to save notification history:', err.message);
+    }
   }
 
   return result;

@@ -26,11 +26,15 @@ export const createStory = asyncHandler(async (req, res) => {
   const populatedStory = await Story.findById(story._id).populate('user', 'name avatar role');
 
   const senderName = req.user.name || 'your partner';
-  await sendPushToPartner(req.user._id, req.coupleId, {
-    title: `✨ ${senderName} added a story`,
-    body: story.caption || "Tap to view their new story",
-    data: { url: `/dashboard` }
-  }, 'media');
+  try {
+    await sendPushToPartner(req.user._id, req.coupleId, {
+      title: `✨ ${senderName} added a story`,
+      body: story.caption || "Tap to view their new story",
+      data: { url: `/dashboard` }
+    }, 'media');
+  } catch (err) {
+    console.error('[stories] partner push failed:', err.message);
+  }
 
   res.status(201).json(populatedStory);
 });
