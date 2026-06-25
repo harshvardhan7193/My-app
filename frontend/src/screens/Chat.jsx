@@ -1688,6 +1688,11 @@ const Chat = () => {
                 backgroundColor: 'var(--card-bg)',
                 borderRadius: '24px 24px 0 0',
                 padding: '24px',
+                paddingBottom:
+                  'calc(24px + var(--aura-composer-bottom, var(--app-pad-bottom, env(safe-area-inset-bottom, 0px))))',
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
                 zIndex: 5001,
                 boxShadow: '0 -8px 32px rgba(0,0,0,0.1)',
               }}

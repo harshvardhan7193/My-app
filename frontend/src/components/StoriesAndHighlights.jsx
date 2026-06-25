@@ -9,7 +9,9 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
   const [archivedStories, setArchivedStories] = useState([]);
   
   // Modals / Player state
-  const [storyPlayer, setStoryPlayer] = useState({ isOpen: false, stories: [], startIndex: 0, title: '' });
+  const [storyPlayer, setStoryPlayer] = useState({
+    isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null,
+  });
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [showCreateHighlight, setShowCreateHighlight] = useState(false);
   
@@ -134,27 +136,73 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
     }
   };
 
+  const storyUserId = (story) => String(story?.user?._id || story?.user || '');
+  const currentUserId = () => String(currentUser?._id || currentUser?.id || '');
+  const isOwnStory = (story) => storyUserId(story) === currentUserId() && currentUserId() !== '';
+
   const handleDeleteStory = async (storyId) => {
-    if (!window.confirm('Are you sure you want to delete this story?')) return;
+    if (!window.confirm('Delete this story permanently?')) return;
     try {
       await api.deleteStory(storyId);
       setActiveStories(prev => prev.filter(s => s._id !== storyId));
-      
-      // If playing, close or move to next
+      setHighlights(prev => prev.map(hl => ({
+        ...hl,
+        stories: (hl.stories || []).filter(s => String(s._id || s) !== String(storyId)),
+      })));
+
       if (storyPlayer.isOpen) {
         const remaining = storyPlayer.stories.filter(s => s._id !== storyId);
         if (remaining.length === 0) {
-          setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '' });
+          setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null });
         } else {
           setStoryPlayer(prev => ({
             ...prev,
             stories: remaining,
-            startIndex: Math.min(prev.startIndex, remaining.length - 1)
+            startIndex: Math.min(prev.startIndex, remaining.length - 1),
           }));
         }
       }
     } catch (err) {
       console.error('Failed to delete story:', err);
+      alert('Could not delete story. Please try again.');
+    }
+  };
+
+  const handleRemoveFromHighlight = async (highlightId, storyId) => {
+    const hl = highlights.find(h => h._id === highlightId);
+    if (!hl) return;
+
+    if (!window.confirm('Remove this story from the highlight?')) return;
+
+    try {
+      const remainingIds = (hl.stories || [])
+        .map(s => s._id || s)
+        .filter(id => String(id) !== String(storyId));
+
+      if (remainingIds.length === 0) {
+        if (!window.confirm('This is the last story. Delete the entire highlight?')) return;
+        await api.deleteHighlight(highlightId);
+        setHighlights(prev => prev.filter(h => h._id !== highlightId));
+        setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null });
+        return;
+      }
+
+      const updated = await api.updateHighlight(highlightId, { stories: remainingIds });
+      setHighlights(prev => prev.map(h => (h._id === highlightId ? updated : h)));
+
+      const remainingStories = storyPlayer.stories.filter(s => s._id !== storyId);
+      if (remainingStories.length === 0) {
+        setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null });
+      } else {
+        setStoryPlayer(prev => ({
+          ...prev,
+          stories: remainingStories,
+          startIndex: Math.min(prev.startIndex, remainingStories.length - 1),
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to remove story from highlight:', err);
+      alert('Could not update highlight. Please try again.');
     }
   };
 
@@ -228,7 +276,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
           <div 
             onClick={() => {
               if (hasMyStories) {
-                setStoryPlayer({ isOpen: true, stories: myStories, startIndex: 0, title: 'Your Story' });
+                setStoryPlayer({ isOpen: true, stories: myStories, startIndex: 0, title: 'Your Story', highlightId: null });
               } else {
                 setShowCreateStory(true);
               }
@@ -297,7 +345,8 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
                     isOpen: true, 
                     stories: partnerStories, 
                     startIndex: 0, 
-                    title: `${(partnerUser.name || 'Partner').split(' ')[0]}'s Story` 
+                    title: `${(partnerUser.name || 'Partner').split(' ')[0]}'s Story`,
+                    highlightId: null,
                   });
                 }
               }}
@@ -347,7 +396,13 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
               onClick={() => {
                 const validStories = (hl.stories || []).filter(Boolean);
                 if (validStories.length > 0) {
-                  setStoryPlayer({ isOpen: true, stories: validStories, startIndex: 0, title: hl.title });
+                  setStoryPlayer({
+                    isOpen: true,
+                    stories: validStories,
+                    startIndex: 0,
+                    title: hl.title,
+                    highlightId: hl._id,
+                  });
                 } else {
                   alert('This highlight has no stories. The stories in it expired or were deleted before index synchronization.');
                 }
@@ -404,8 +459,10 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
           <StoryPlayerPortal 
             player={storyPlayer}
             currentUser={currentUser}
-            onClose={() => setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '' })}
+            onClose={() => setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null })}
             onDelete={handleDeleteStory}
+            onRemoveFromHighlight={handleRemoveFromHighlight}
+            isOwnStory={isOwnStory}
           />
         )}
       </AnimatePresence>
@@ -722,7 +779,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
 };
 
 // PORTAL-STYLE INNER PLAYER COMPONENT FOR FULLSCREEN DISPLAY
-const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete }) => {
+const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete, onRemoveFromHighlight, isOwnStory }) => {
   const [currentIndex, setCurrentIndex] = useState(player.startIndex);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -798,6 +855,11 @@ const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete }) => {
   };
 
   if (!activeStory) return null;
+
+  const ownStory = isOwnStory(activeStory);
+  const inHighlight = !!player.highlightId;
+  const showDelete = ownStory;
+  const showRemoveFromHighlight = inHighlight && !ownStory;
 
   const timeString = () => {
     const hours = Math.floor((new Date() - new Date(activeStory.createdAt)) / (1000 * 60 * 60));
@@ -914,31 +976,66 @@ const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete }) => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', zIndex: 30 }}>
-            {/* Delete button (only for current user's active story) */}
-            {activeStory.user?._id === currentUser?._id && (
-              <button 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', zIndex: 30 }}>
+            {showDelete && (
+              <button
+                type="button"
+                aria-label="Delete story"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(activeStory._id);
                 }}
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  color: 'var(--blush-pink)',
-                  borderRadius: '50%',
-                  width: '32px',
+                  background: 'rgba(255, 77, 98, 0.22)',
+                  border: '1px solid rgba(255, 120, 140, 0.45)',
+                  color: '#ff8a9a',
+                  borderRadius: '999px',
                   height: '32px',
+                  padding: '0 12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer'
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 600,
                 }}
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
+                Delete
+              </button>
+            )}
+            {showRemoveFromHighlight && (
+              <button
+                type="button"
+                aria-label="Remove from highlight"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveFromHighlight(player.highlightId, activeStory._id);
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.12)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  borderRadius: '999px',
+                  height: '32px',
+                  padding: '0 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                }}
+              >
+                <Trash2 size={14} />
+                Remove
               </button>
             )}
             <button 
+              type="button"
+              aria-label="Close story viewer"
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();
@@ -984,7 +1081,7 @@ const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete }) => {
         {activeStory.caption && (
           <div style={{
             position: 'absolute',
-            bottom: activeStory.user?._id === currentUser?._id ? '64px' : '32px',
+            bottom: ownStory ? '64px' : '32px',
             left: '16px',
             right: '16px',
             padding: '16px',
@@ -1002,7 +1099,7 @@ const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete }) => {
         )}
 
         {/* Story Views Counter (Only if owner) */}
-        {activeStory.user?._id === currentUser?._id && (
+        {ownStory && (
           <div style={{
             height: '48px',
             backgroundColor: 'rgba(0,0,0,0.8)',
