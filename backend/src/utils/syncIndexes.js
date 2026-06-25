@@ -21,6 +21,8 @@ import '../models/Story.js';
 import '../models/Highlight.js';
 import '../models/ActivityLog.js';
 import '../models/Session.js';
+import '../models/Contact.js';
+import '../models/ContactSyncLog.js';
 
 const run = async () => {
   if (!process.env.MONGO_URI) {

@@ -26,6 +26,7 @@ import dashboardRoutes from './src/routes/dashboard.js';
 import chatRoutes from './src/routes/chat.js';
 import storyRoutes from './src/routes/stories.js';
 import highlightRoutes from './src/routes/highlights.js';
+import contactRoutes from './src/routes/contacts.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -92,6 +93,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/stories', storyRoutes);
 app.use('/api/highlights', highlightRoutes);
+app.use('/api/contacts', contactRoutes);
 
 // ─── Error Handling ───────────────────────────────
 app.use(notFound);
