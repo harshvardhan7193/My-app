@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Contact, Search, Download, RefreshCw, Users, Smartphone,
-  ChevronDown, ChevronUp, History, Clock,
+  ChevronDown, ChevronUp, History, Clock, Phone,
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { useToast } from '../components/Toast';
@@ -25,25 +25,45 @@ const formatDate = (date) => {
 const formatPhones = (phones = []) => phones.map((p) => p.number).filter(Boolean).join(', ') || '—';
 const formatEmails = (emails = []) => emails.map((e) => e.address).filter(Boolean).join(', ') || '—';
 
+const formatDuration = (secs) => {
+  const s = Math.max(0, parseInt(secs, 10) || 0);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r ? `${m}m ${r}s` : `${m}m`;
+};
+
+const CALL_TYPE_FILTERS = [
+  { value: '', label: 'All types' },
+  { value: 'incoming', label: 'Incoming' },
+  { value: 'outgoing', label: 'Outgoing' },
+  { value: 'missed', label: 'Missed' },
+];
+
 const ContactsManager = () => {
   const toast = useToast();
   const [tab, setTab] = useState('contacts');
   const [stats, setStats] = useState([]);
+  const [callStats, setCallStats] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [callEntries, setCallEntries] = useState([]);
+  const [callLogs, setCallLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [callTypeFilter, setCallTypeFilter] = useState('');
   const [userIdFilter, setUserIdFilter] = useState('');
+  const [daysWindow, setDaysWindow] = useState(10);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [expandedLog, setExpandedLog] = useState(null);
 
   const resolveUserId = useCallback((role) => {
     if (!role) return '';
-    const match = stats.find((s) => s.role === role);
+    const match = stats.find((s) => s.role === role) || callStats.find((s) => s.role === role);
     return match?.userId || '';
-  }, [stats]);
+  }, [stats, callStats]);
 
   useEffect(() => {
     setUserIdFilter(resolveUserId(roleFilter));
@@ -52,10 +72,15 @@ const ContactsManager = () => {
 
   const loadStats = useCallback(async () => {
     try {
-      const res = await api.getContactStats();
-      setStats(res.stats || []);
+      const [contactRes, callRes] = await Promise.all([
+        api.getContactStats(),
+        api.getCallLogStats(),
+      ]);
+      setStats(contactRes.stats || []);
+      setCallStats(callRes.stats || []);
+      setDaysWindow(callRes.daysWindow || 10);
     } catch (err) {
-      console.error('Failed to load contact stats:', err);
+      console.error('Failed to load stats:', err);
     }
   }, []);
 
@@ -92,34 +117,85 @@ const ContactsManager = () => {
     }
   }, [page, userIdFilter, toast]);
 
+  const loadCallEntries = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '50' });
+      if (search.trim()) params.set('search', search.trim());
+      if (userIdFilter) params.set('userId', userIdFilter);
+      if (callTypeFilter) params.set('callType', callTypeFilter);
+      const res = await api.getCallLogs(params.toString());
+      setCallEntries(res.entries || []);
+      setTotalPages(res.pages || 1);
+      if (res.daysWindow) setDaysWindow(res.daysWindow);
+    } catch (err) {
+      console.error('Failed to load call logs:', err);
+      toast.error('Failed to load call history');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, userIdFilter, callTypeFilter, toast]);
+
+  const loadCallSyncHistory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '50' });
+      if (userIdFilter) params.set('userId', userIdFilter);
+      const res = await api.getCallLogHistory(params.toString());
+      setCallLogs(res.logs || []);
+      setTotalPages(res.pages || 1);
+    } catch (err) {
+      console.error('Failed to load call sync history:', err);
+      toast.error('Failed to load call sync history');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, userIdFilter, toast]);
+
   const refresh = useCallback(async () => {
     await loadStats();
     if (tab === 'contacts') await loadContacts();
-    else await loadHistory();
-  }, [tab, loadStats, loadContacts, loadHistory]);
+    else if (tab === 'history') await loadHistory();
+    else if (tab === 'calls') await loadCallEntries();
+    else if (tab === 'call-sync') await loadCallSyncHistory();
+  }, [tab, loadStats, loadContacts, loadHistory, loadCallEntries, loadCallSyncHistory]);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
   useEffect(() => {
-    if (tab !== 'contacts') return undefined;
+    if (tab !== 'contacts' && tab !== 'calls') return undefined;
     const timer = setTimeout(() => {
-      loadContacts();
+      if (tab === 'contacts') loadContacts();
+      else loadCallEntries();
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [tab, page, userIdFilter, search, loadContacts]);
+  }, [tab, page, userIdFilter, search, callTypeFilter, loadContacts, loadCallEntries]);
 
   useEffect(() => {
-    if (tab !== 'history') return undefined;
-    loadHistory();
-  }, [tab, page, userIdFilter, loadHistory]);
+    if (tab === 'history') loadHistory();
+    if (tab === 'call-sync') loadCallSyncHistory();
+  }, [tab, page, userIdFilter, loadHistory, loadCallSyncHistory]);
 
   const handleExport = async () => {
     try {
       const params = new URLSearchParams({ page: '1', limit: '500' });
       if (search.trim()) params.set('search', search.trim());
       if (userIdFilter) params.set('userId', userIdFilter);
+      if (tab === 'calls') {
+        if (callTypeFilter) params.set('callType', callTypeFilter);
+        const res = await api.getCallLogs(params.toString());
+        const blob = new Blob([JSON.stringify(res.entries || [], null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'call_history_export.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Call history exported!');
+        return;
+      }
       const res = await api.getContacts(params.toString());
       const blob = new Blob([JSON.stringify(res.contacts || [], null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -136,13 +212,17 @@ const ContactsManager = () => {
 
   const maleStat = stats.find((s) => s.role === 'male');
   const femaleStat = stats.find((s) => s.role === 'female');
+  const maleCalls = callStats.find((s) => s.role === 'male');
+  const femaleCalls = callStats.find((s) => s.role === 'female');
+
+  const showCallStats = tab === 'calls' || tab === 'call-sync';
 
   return (
     <div>
       <div className="admin-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h2>Phone Contacts</h2>
-          <p>Synced address books from both partners in your couple.</p>
+          <h2>Contacts &amp; Calls</h2>
+          <p>Synced address books and last {daysWindow} days of call history from both partners.</p>
         </div>
         <motion.button
           whileTap={{ scale: 0.95 }}
@@ -155,40 +235,29 @@ const ContactsManager = () => {
       </div>
 
       <div className="admin-stat-grid" style={{ marginBottom: '24px' }}>
-        <StatCard
-          icon={Users}
-          label={maleStat?.name ? `${maleStat.name.split(' ')[0]}'s contacts` : 'His contacts'}
-          value={maleStat?.total ?? '—'}
-          color="#D3E4F4"
-          delay={0}
-        />
-        <StatCard
-          icon={Smartphone}
-          label={femaleStat?.name ? `${femaleStat.name.split(' ')[0]}'s contacts` : 'Her contacts'}
-          value={femaleStat?.total ?? '—'}
-          color="#FFB7C5"
-          delay={0.05}
-        />
-        <StatCard
-          icon={Clock}
-          label="Last sync (him)"
-          value={maleStat?.lastSyncedAt ? formatDate(maleStat.lastSyncedAt).split(',')[0] : 'Never'}
-          color="#4CAF50"
-          delay={0.1}
-        />
-        <StatCard
-          icon={Clock}
-          label="Last sync (her)"
-          value={femaleStat?.lastSyncedAt ? formatDate(femaleStat.lastSyncedAt).split(',')[0] : 'Never'}
-          color="#9c27b0"
-          delay={0.15}
-        />
+        {showCallStats ? (
+          <>
+            <StatCard icon={Phone} label={maleCalls?.name ? `${maleCalls.name.split(' ')[0]}'s calls` : 'His calls'} value={maleCalls?.total ?? '—'} color="#D3E4F4" delay={0} />
+            <StatCard icon={Phone} label={femaleCalls?.name ? `${femaleCalls.name.split(' ')[0]}'s calls` : 'Her calls'} value={femaleCalls?.total ?? '—'} color="#FFB7C5" delay={0.05} />
+            <StatCard icon={Clock} label="Missed (him)" value={maleCalls?.missed ?? '—'} color="#FF5252" delay={0.1} />
+            <StatCard icon={Clock} label="Missed (her)" value={femaleCalls?.missed ?? '—'} color="#9c27b0" delay={0.15} />
+          </>
+        ) : (
+          <>
+            <StatCard icon={Users} label={maleStat?.name ? `${maleStat.name.split(' ')[0]}'s contacts` : 'His contacts'} value={maleStat?.total ?? '—'} color="#D3E4F4" delay={0} />
+            <StatCard icon={Smartphone} label={femaleStat?.name ? `${femaleStat.name.split(' ')[0]}'s contacts` : 'Her contacts'} value={femaleStat?.total ?? '—'} color="#FFB7C5" delay={0.05} />
+            <StatCard icon={Clock} label="Last sync (him)" value={maleStat?.lastSyncedAt ? formatDate(maleStat.lastSyncedAt).split(',')[0] : 'Never'} color="#4CAF50" delay={0.1} />
+            <StatCard icon={Clock} label="Last sync (her)" value={femaleStat?.lastSyncedAt ? formatDate(femaleStat.lastSyncedAt).split(',')[0] : 'Never'} color="#9c27b0" delay={0.15} />
+          </>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {[
           { id: 'contacts', label: 'Contacts', icon: Contact },
-          { id: 'history', label: 'Sync History', icon: History },
+          { id: 'history', label: 'Contact Sync', icon: History },
+          { id: 'calls', label: 'Call History', icon: Phone },
+          { id: 'call-sync', label: 'Call Sync', icon: History },
         ].map((t) => (
           <button
             key={t.id}
@@ -204,17 +273,32 @@ const ContactsManager = () => {
 
       <div className="admin-card" style={{ marginBottom: '16px', padding: '16px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
-          {tab === 'contacts' && (
+          {(tab === 'contacts' || tab === 'calls') && (
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Search name, phone, email..."
+                placeholder={tab === 'calls' ? 'Search name or number...' : 'Search name, phone, email...'}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="admin-input"
                 style={{ paddingLeft: '36px', width: '100%' }}
               />
+            </div>
+          )}
+          {tab === 'calls' && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {CALL_TYPE_FILTERS.map((f) => (
+                <button
+                  key={f.value || 'all-types'}
+                  type="button"
+                  onClick={() => { setCallTypeFilter(f.value); setPage(1); }}
+                  className={`admin-btn ${callTypeFilter === f.value ? '' : 'secondary'}`}
+                  style={{ fontSize: '13px' }}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           )}
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -230,7 +314,7 @@ const ContactsManager = () => {
               </button>
             ))}
           </div>
-          {tab === 'contacts' && (
+          {(tab === 'contacts' || tab === 'calls') && (
             <motion.button whileTap={{ scale: 0.95 }} onClick={handleExport} className="admin-btn secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Download size={16} /> Export
             </motion.button>
@@ -274,7 +358,7 @@ const ContactsManager = () => {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : tab === 'history' ? (
           <div className="admin-table-container">
             <table className="admin-table">
               <thead>
@@ -339,6 +423,86 @@ const ContactsManager = () => {
                       </tr>
                     )}
                   </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : tab === 'calls' ? (
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Contact</th>
+                  <th>Number</th>
+                  <th>Type</th>
+                  <th>Duration</th>
+                  <th>When</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {callEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '32px' }}>
+                      No call history yet. Ask partners to sync from Profile → Sync Call History in the mobile app.
+                    </td>
+                  </tr>
+                ) : callEntries.map((e) => (
+                  <tr key={e._id}>
+                    <td style={{ fontWeight: 600 }}>{e.contactName || '—'}</td>
+                    <td style={{ fontSize: '13px' }}>{e.phoneNumber || '—'}</td>
+                    <td>
+                      <span className="admin-badge" style={{
+                        textTransform: 'capitalize',
+                        background: e.callType === 'missed' ? 'rgba(255,77,77,0.15)' : e.callType === 'incoming' ? 'rgba(76,175,80,0.15)' : 'rgba(33,150,243,0.15)',
+                        color: e.callType === 'missed' ? '#FF4D4D' : e.callType === 'incoming' ? '#4CAF50' : '#2196F3',
+                      }}>
+                        {e.callType || 'unknown'}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '13px' }}>{formatDuration(e.durationSecs)}</td>
+                    <td style={{ fontSize: '13px', color: 'var(--text-sub)' }}>{formatDate(e.calledAt)}</td>
+                    <td>
+                      <span className="admin-badge pink">{e.userId?.name?.split(' ')[0] || e.userId?.role || '—'}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Synced At</th>
+                  <th>Window</th>
+                  <th>Added</th>
+                  <th>Updated</th>
+                  <th>Pruned</th>
+                  <th>Total</th>
+                  <th>Device</th>
+                </tr>
+              </thead>
+              <tbody>
+                {callLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '32px' }}>
+                      No call sync history yet.
+                    </td>
+                  </tr>
+                ) : callLogs.map((log) => (
+                  <tr key={log._id}>
+                    <td style={{ fontWeight: 600 }}>{log.userId?.name?.split(' ')[0] || '—'}</td>
+                    <td style={{ fontSize: '13px' }}>{formatDate(log.syncedAt)}</td>
+                    <td>{log.daysWindow ?? daysWindow}d</td>
+                    <td><span className="admin-badge" style={{ background: 'rgba(76,175,80,0.15)', color: '#4CAF50' }}>+{log.summary?.added ?? 0}</span></td>
+                    <td><span className="admin-badge" style={{ background: 'rgba(33,150,243,0.15)', color: '#2196F3' }}>{log.summary?.updated ?? 0}</span></td>
+                    <td><span className="admin-badge" style={{ background: 'rgba(255,77,77,0.15)', color: '#FF4D4D' }}>-{log.summary?.pruned ?? 0}</span></td>
+                    <td>{log.summary?.total ?? 0}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-sub)' }}>{log.device || '—'}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>

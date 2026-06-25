@@ -798,6 +798,20 @@ class ApiClient {
     return this.request('/contacts/stats');
   }
 
+  getCallLogs(query = '') {
+    const qs = query ? `?${query}` : '';
+    return this.request(`/call-logs${qs}`);
+  }
+
+  getCallLogHistory(query = '') {
+    const qs = query ? `?${query}` : '';
+    return this.request(`/call-logs/history${qs}`);
+  }
+
+  getCallLogStats() {
+    return this.request('/call-logs/stats');
+  }
+
   updateCoordinates(latitude, longitude) {
     return this.request('/users/coordinates', {
       method: 'PUT',
