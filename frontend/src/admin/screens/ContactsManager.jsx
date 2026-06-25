@@ -228,7 +228,6 @@ const ContactsManager = () => {
           whileTap={{ scale: 0.95 }}
           onClick={refresh}
           className="admin-btn secondary"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <RefreshCw size={16} /> Refresh
         </motion.button>
@@ -252,7 +251,7 @@ const ContactsManager = () => {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div className="admin-tab-bar">
         {[
           { id: 'contacts', label: 'Contacts', icon: Contact },
           { id: 'history', label: 'Contact Sync', icon: History },
@@ -264,61 +263,65 @@ const ContactsManager = () => {
             type="button"
             onClick={() => { setTab(t.id); setPage(1); }}
             className={`admin-btn ${tab === t.id ? '' : 'secondary'}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <t.icon size={16} /> {t.label}
           </button>
         ))}
       </div>
 
-      <div className="admin-card" style={{ marginBottom: '16px', padding: '16px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+      <div className="admin-card" style={{ marginBottom: '16px', padding: '16px 20px' }}>
+        <div className="admin-toolbar">
           {(tab === 'contacts' || tab === 'calls') && (
-            <div style={{ position: 'relative', flex: '1 1 200px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <div className="admin-search-wrap">
+              <Search size={16} color="var(--text-muted)" />
               <input
                 type="text"
                 placeholder={tab === 'calls' ? 'Search name or number...' : 'Search name, phone, email...'}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="admin-input"
-                style={{ paddingLeft: '36px', width: '100%' }}
               />
             </div>
           )}
-          {tab === 'calls' && (
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {CALL_TYPE_FILTERS.map((f) => (
+
+          <div className="admin-toolbar-filters">
+            {tab === 'calls' && (
+              <div className="admin-filter-group">
+                {CALL_TYPE_FILTERS.map((f) => (
+                  <button
+                    key={f.value || 'all-types'}
+                    type="button"
+                    onClick={() => { setCallTypeFilter(f.value); setPage(1); }}
+                    className={`admin-btn chip ${callTypeFilter === f.value ? 'is-active-dark' : 'secondary'}`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="admin-filter-group">
+              {USER_FILTERS.map((f) => (
                 <button
-                  key={f.value || 'all-types'}
+                  key={f.value || 'all'}
                   type="button"
-                  onClick={() => { setCallTypeFilter(f.value); setPage(1); }}
-                  className={`admin-btn ${callTypeFilter === f.value ? '' : 'secondary'}`}
-                  style={{ fontSize: '13px' }}
+                  onClick={() => setRoleFilter(f.value)}
+                  className={`admin-btn chip ${roleFilter === f.value ? 'is-active' : 'secondary'}`}
                 >
                   {f.label}
                 </button>
               ))}
             </div>
-          )}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {USER_FILTERS.map((f) => (
-              <button
-                key={f.value || 'all'}
-                type="button"
-                onClick={() => setRoleFilter(f.value)}
-                className={`admin-btn ${roleFilter === f.value ? '' : 'secondary'}`}
-                style={{ fontSize: '13px' }}
+
+            {(tab === 'contacts' || tab === 'calls') && (
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleExport}
+                className="admin-btn secondary"
               >
-                {f.label}
-              </button>
-            ))}
+                <Download size={16} /> Export
+              </motion.button>
+            )}
           </div>
-          {(tab === 'contacts' || tab === 'calls') && (
-            <motion.button whileTap={{ scale: 0.95 }} onClick={handleExport} className="admin-btn secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Download size={16} /> Export
-            </motion.button>
-          )}
         </div>
       </div>
 
@@ -510,9 +513,9 @@ const ContactsManager = () => {
         )}
 
         {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', padding: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', padding: '16px', alignItems: 'center' }}>
             <button type="button" className="admin-btn secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
-            <span style={{ alignSelf: 'center', fontSize: '13px', color: 'var(--text-sub)' }}>Page {page} of {totalPages}</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-sub)', fontWeight: 600 }}>Page {page} of {totalPages}</span>
             <button type="button" className="admin-btn secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
           </div>
         )}

@@ -216,6 +216,157 @@ body.dark-mode {
 .admin-badge.pink { background: var(--card-accent-pink); color: var(--blush-pink); }
 .admin-badge.purple { background: var(--card-accent-purple); color: #9c27b0; }
 
+/* ─── Buttons, tabs & toolbar (ContactsManager, etc.) ─── */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--blush-pink);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.admin-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgba(255, 183, 197, 0.4);
+}
+
+.admin-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.admin-btn.secondary {
+  background: var(--card-bg);
+  color: var(--text-sub);
+  border-color: var(--border-light);
+  box-shadow: none;
+}
+
+.admin-btn.secondary:hover:not(:disabled) {
+  background: var(--chat-bg);
+  color: var(--text-main);
+  border-color: var(--border-light);
+  box-shadow: none;
+}
+
+.admin-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-btn.chip {
+  padding: 7px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+}
+
+.admin-btn.chip.is-active {
+  background: var(--blush-pink);
+  color: white;
+  border-color: transparent;
+}
+
+.admin-btn.chip.is-active-dark {
+  background: var(--text-main);
+  color: var(--card-bg);
+  border-color: transparent;
+}
+
+.admin-tab-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 6px;
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--admin-card-shadow);
+}
+
+.admin-tab-bar .admin-btn {
+  flex: 1 1 130px;
+  border-radius: 12px;
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-filter-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 4px;
+  border-radius: 100px;
+  background: var(--chat-bg);
+  border: 1px solid var(--border-light);
+}
+
+.admin-filter-group .admin-btn.chip {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.admin-filter-group .admin-btn.chip.secondary:hover:not(:disabled) {
+  background: var(--card-bg);
+  border-color: transparent;
+}
+
+.admin-filter-group .admin-btn.chip.is-active,
+.admin-filter-group .admin-btn.chip.is-active-dark {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.admin-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 380px;
+  background: var(--chat-bg);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+}
+
+.admin-search-wrap input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  font-size: 14px;
+  color: var(--text-main);
+  font-family: inherit;
+}
+
+.admin-search-wrap input::placeholder {
+  color: var(--text-muted);
+}
+
 .admin-grid {
   display: grid;
   gap: 24px;
