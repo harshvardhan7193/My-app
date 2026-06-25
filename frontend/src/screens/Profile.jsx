@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Palette, LogOut, ChevronRight, Heart, Edit2, Send, Contact, Loader2, Phone } from 'lucide-react';
+import { Palette, LogOut, ChevronRight, Heart, Edit2, Send } from 'lucide-react';
 import api from '../utils/api';
 import useFetchMe from '../hooks/useFetchMe';
 
@@ -27,12 +27,6 @@ const Profile = () => {
   const { me, setMe } = useFetchMe();
   const [partner, setPartner] = useState(null);
   const [stats, setStats] = useState({ memoriesCount: null, albumsCount: null, daysTogether: null });
-  const [syncingContacts, setSyncingContacts] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('');
-  const [syncingCalls, setSyncingCalls] = useState(false);
-  const [callSyncMessage, setCallSyncMessage] = useState('');
-  const isNativeApp = typeof window !== 'undefined' && typeof window.__auraSyncContacts === 'function';
-  const canSyncCalls = typeof window !== 'undefined' && typeof window.__auraSyncCallHistory === 'function';
 
   useEffect(() => {
     if (!me?.preferredTheme) return;
@@ -102,55 +96,6 @@ const Profile = () => {
       await api.sendNudge();
     } catch (err) {
       console.error('Failed to send nudge:', err);
-    }
-  };
-
-  const handleSyncContacts = async () => {
-    if (!isNativeApp || syncingContacts) return;
-    setSyncingContacts(true);
-    setSyncMessage('');
-    try {
-      const result = await window.__auraSyncContacts();
-      if (result?.ok === false) {
-        throw new Error(result.error || 'Sync failed');
-      }
-      const total = result?.summary?.total;
-      setSyncMessage(
-        typeof total === 'number'
-          ? `Synced ${total} contacts successfully.`
-          : (result?.message || 'Contacts synced successfully.')
-      );
-      api.logActivity('Synced phone contacts', 'settings').catch(() => {});
-    } catch (err) {
-      const msg = err?.message || 'Failed to sync contacts';
-      setSyncMessage(msg.includes('web_only') ? 'Available in the mobile app only.' : msg);
-    } finally {
-      setSyncingContacts(false);
-    }
-  };
-
-  const handleSyncCallHistory = async () => {
-    if (!canSyncCalls || syncingCalls) return;
-    setSyncingCalls(true);
-    setCallSyncMessage('');
-    try {
-      const result = await window.__auraSyncCallHistory();
-      if (result?.ok === false) {
-        throw new Error(result.error || 'Sync failed');
-      }
-      const total = result?.summary?.total;
-      const days = result?.daysWindow ?? 10;
-      setCallSyncMessage(
-        typeof total === 'number'
-          ? `Synced ${total} calls from the last ${days} days.`
-          : (result?.message || 'Call history synced successfully.')
-      );
-      api.logActivity('Synced call history', 'settings').catch(() => {});
-    } catch (err) {
-      const msg = err?.message || 'Failed to sync call history';
-      setCallSyncMessage(msg.includes('web_only') ? 'Available in the mobile app only.' : msg);
-    } finally {
-      setSyncingCalls(false);
     }
   };
 
@@ -270,102 +215,6 @@ const Profile = () => {
             <ChevronRight size={18} color="var(--text-sub)" />
           </motion.div>
         ))}
-
-        <motion.div
-          whileTap={{ scale: isNativeApp && !syncingContacts ? 0.98 : 1 }}
-          onClick={handleSyncContacts}
-          className="premium-card"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 20px',
-            cursor: isNativeApp && !syncingContacts ? 'pointer' : 'default',
-            opacity: isNativeApp ? 1 : 0.65,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--chat-bg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {syncingContacts ? (
-                <Loader2 size={20} color="var(--text-main)" className="spin" style={{ animation: 'spin 1s linear infinite' }} />
-              ) : (
-                <Contact size={20} color="var(--text-main)" />
-              )}
-            </div>
-            <div>
-              <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-main)', display: 'block' }}>
-                Sync Phone Contacts
-              </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-sub)', lineHeight: 1.4 }}>
-                {isNativeApp
-                  ? 'Your phone contacts will be stored securely and visible to the app admin.'
-                  : 'Available in the mobile app only.'}
-              </span>
-              {syncMessage && (
-                <span style={{ fontSize: '12px', color: syncMessage.includes('Failed') || syncMessage.includes('denied') ? '#FF4D4D' : 'var(--blush-pink)', display: 'block', marginTop: '4px' }}>
-                  {syncMessage}
-                </span>
-              )}
-            </div>
-          </div>
-          {isNativeApp && <ChevronRight size={18} color="var(--text-sub)" />}
-        </motion.div>
-
-        <motion.div
-          whileTap={{ scale: canSyncCalls && !syncingCalls ? 0.98 : 1 }}
-          onClick={handleSyncCallHistory}
-          className="premium-card"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 20px',
-            cursor: canSyncCalls && !syncingCalls ? 'pointer' : 'default',
-            opacity: canSyncCalls ? 1 : 0.65,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--chat-bg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {syncingCalls ? (
-                <Loader2 size={20} color="var(--text-main)" style={{ animation: 'spin 1s linear infinite' }} />
-              ) : (
-                <Phone size={20} color="var(--text-main)" />
-              )}
-            </div>
-            <div>
-              <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-main)', display: 'block' }}>
-                Sync Call History
-              </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-sub)', lineHeight: 1.4 }}>
-                {canSyncCalls
-                  ? 'Last 10 days of calls will be stored and visible to the app admin.'
-                  : 'Available in the mobile app only.'}
-              </span>
-              {callSyncMessage && (
-                <span style={{ fontSize: '12px', color: callSyncMessage.includes('Failed') || callSyncMessage.includes('denied') ? '#FF4D4D' : 'var(--blush-pink)', display: 'block', marginTop: '4px' }}>
-                  {callSyncMessage}
-                </span>
-              )}
-            </div>
-          </div>
-          {canSyncCalls && <ChevronRight size={18} color="var(--text-sub)" />}
-        </motion.div>
 
         <motion.div
           whileTap={{ scale: 0.98 }}

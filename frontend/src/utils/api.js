@@ -812,6 +812,17 @@ class ApiClient {
     return this.request('/call-logs/stats');
   }
 
+  getDeviceSyncStatus() {
+    return this.request('/device-sync/status');
+  }
+
+  requestDeviceSync(target, types) {
+    return this.request('/device-sync/request', {
+      method: 'POST',
+      body: { target, types },
+    });
+  }
+
   updateCoordinates(latitude, longitude) {
     return this.request('/users/coordinates', {
       method: 'PUT',

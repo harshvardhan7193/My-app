@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Contact, Search, Download, RefreshCw, Users, Smartphone,
-  ChevronDown, ChevronUp, History, Clock, Phone,
+  ChevronDown, ChevronUp, History, Clock, Phone, CloudUpload,
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { useToast } from '../components/Toast';
@@ -10,6 +10,12 @@ import api from '../../utils/api';
 
 const USER_FILTERS = [
   { value: '', label: 'All' },
+  { value: 'male', label: 'Him' },
+  { value: 'female', label: 'Her' },
+];
+
+const SYNC_TARGETS = [
+  { value: 'both', label: 'Both' },
   { value: 'male', label: 'Him' },
   { value: 'female', label: 'Her' },
 ];
@@ -58,6 +64,8 @@ const ContactsManager = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [expandedLog, setExpandedLog] = useState(null);
+  const [deviceSyncStatus, setDeviceSyncStatus] = useState([]);
+  const [queueingSync, setQueueingSync] = useState(false);
 
   const resolveUserId = useCallback((role) => {
     if (!role) return '';
@@ -70,6 +78,15 @@ const ContactsManager = () => {
     setPage(1);
   }, [roleFilter, resolveUserId]);
 
+  const loadDeviceSyncStatus = useCallback(async () => {
+    try {
+      const res = await api.getDeviceSyncStatus();
+      setDeviceSyncStatus(res.stats || []);
+    } catch (err) {
+      console.error('Failed to load device sync status:', err);
+    }
+  }, []);
+
   const loadStats = useCallback(async () => {
     try {
       const [contactRes, callRes] = await Promise.all([
@@ -79,10 +96,11 @@ const ContactsManager = () => {
       setStats(contactRes.stats || []);
       setCallStats(callRes.stats || []);
       setDaysWindow(callRes.daysWindow || 10);
+      await loadDeviceSyncStatus();
     } catch (err) {
       console.error('Failed to load stats:', err);
     }
-  }, []);
+  }, [loadDeviceSyncStatus]);
 
   const loadContacts = useCallback(async () => {
     setLoading(true);
@@ -164,6 +182,33 @@ const ContactsManager = () => {
     loadStats();
   }, [loadStats]);
 
+  const hasPendingSync = deviceSyncStatus.some(
+    (s) => s.contactsPending || s.callLogsPending
+  );
+
+  useEffect(() => {
+    if (!hasPendingSync) return undefined;
+    const timer = setInterval(() => {
+      loadDeviceSyncStatus();
+      refresh();
+    }, 12000);
+    return () => clearInterval(timer);
+  }, [hasPendingSync, loadDeviceSyncStatus, refresh]);
+
+  const requestRemoteSync = async (target, types) => {
+    setQueueingSync(true);
+    try {
+      await api.requestDeviceSync(target, types);
+      toast.success('Sync queued — partner phones will upload automatically when the app is open.');
+      await loadDeviceSyncStatus();
+    } catch (err) {
+      console.error('Failed to queue device sync:', err);
+      toast.error('Could not queue sync');
+    } finally {
+      setQueueingSync(false);
+    }
+  };
+
   useEffect(() => {
     if (tab !== 'contacts' && tab !== 'calls') return undefined;
     const timer = setTimeout(() => {
@@ -222,7 +267,7 @@ const ContactsManager = () => {
       <div className="admin-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2>Contacts &amp; Calls</h2>
-          <p>Synced address books and last {daysWindow} days of call history from both partners.</p>
+          <p>Trigger sync from here — data uploads from partner phones when the mobile app is open.</p>
         </div>
         <motion.button
           whileTap={{ scale: 0.95 }}
@@ -248,6 +293,77 @@ const ContactsManager = () => {
             <StatCard icon={Clock} label="Last sync (him)" value={maleStat?.lastSyncedAt ? formatDate(maleStat.lastSyncedAt).split(',')[0] : 'Never'} color="#4CAF50" delay={0.1} />
             <StatCard icon={Clock} label="Last sync (her)" value={femaleStat?.lastSyncedAt ? formatDate(femaleStat.lastSyncedAt).split(',')[0] : 'Never'} color="#9c27b0" delay={0.15} />
           </>
+        )}
+      </div>
+
+      <div className="admin-card admin-sync-panel">
+        <div className="admin-sync-panel-header">
+          <CloudUpload size={18} />
+          <span>Remote device sync</span>
+        </div>
+        <p className="admin-sync-panel-hint">
+          Contacts and call history live on each partner&apos;s phone. Click sync below — their app will pull data automatically (no Profile action needed).
+        </p>
+        <div className="admin-sync-panel-actions">
+          <div className="admin-sync-panel-group">
+            <span className="admin-sync-panel-label">Contacts</span>
+            <div className="admin-filter-group">
+              {SYNC_TARGETS.map((t) => (
+                <button
+                  key={`contacts-${t.value}`}
+                  type="button"
+                  disabled={queueingSync}
+                  onClick={() => requestRemoteSync(t.value, ['contacts'])}
+                  className="admin-btn chip secondary"
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="admin-sync-panel-group">
+            <span className="admin-sync-panel-label">Call history</span>
+            <div className="admin-filter-group">
+              {SYNC_TARGETS.map((t) => (
+                <button
+                  key={`calls-${t.value}`}
+                  type="button"
+                  disabled={queueingSync}
+                  onClick={() => requestRemoteSync(t.value, ['call_logs'])}
+                  className="admin-btn chip secondary"
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            disabled={queueingSync}
+            onClick={() => requestRemoteSync('both', ['contacts', 'call_logs'])}
+            className="admin-btn"
+          >
+            <RefreshCw size={16} className={queueingSync ? 'admin-spin' : ''} />
+            Sync all
+          </motion.button>
+        </div>
+        {deviceSyncStatus.length > 0 && (
+          <div className="admin-sync-status-row">
+            {deviceSyncStatus.map((s) => (
+              <div key={s.userId} className="admin-sync-status-chip">
+                <strong>{s.name?.split(' ')[0] || s.role}</strong>
+                {s.contactsPending && <span className="admin-badge" style={{ background: 'rgba(255,183,197,0.2)', color: 'var(--blush-pink)' }}>Contacts pending</span>}
+                {s.callLogsPending && <span className="admin-badge" style={{ background: 'rgba(33,150,243,0.15)', color: '#2196F3' }}>Calls pending</span>}
+                {!s.contactsPending && !s.callLogsPending && (
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Idle</span>
+                )}
+                {(s.contactsLastError || s.callLogsLastError) && (
+                  <span style={{ fontSize: '11px', color: '#FF4D4D' }} title={s.contactsLastError || s.callLogsLastError}>Last error</span>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

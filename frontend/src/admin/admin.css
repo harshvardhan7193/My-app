@@ -340,6 +340,78 @@ body.dark-mode {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.admin-sync-panel {
+  margin-bottom: 20px;
+  padding: 18px 20px;
+}
+
+.admin-sync-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: var(--text-main);
+}
+
+.admin-sync-panel-hint {
+  font-size: 13px;
+  color: var(--text-sub);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.admin-sync-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.admin-sync-panel-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-sync-panel-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.admin-sync-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+}
+
+.admin-sync-status-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--chat-bg);
+  font-size: 13px;
+}
+
+@keyframes admin-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.admin-spin {
+  animation: admin-spin 1s linear infinite;
+}
+
 .admin-search-wrap {
   display: flex;
   align-items: center;
