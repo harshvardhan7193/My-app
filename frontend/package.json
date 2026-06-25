@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:flutter": "vite build && powershell -ExecutionPolicy Bypass -File ../scripts/copy-www-to-flutter.ps1",
+    "build:flutter": "powershell -ExecutionPolicy Bypass -File ../scripts/copy-www-to-flutter.ps1",
     "lint": "eslint .",
     "preview": "vite preview"
   },
