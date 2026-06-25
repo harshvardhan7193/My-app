@@ -27,6 +27,7 @@ import chatRoutes from './src/routes/chat.js';
 import storyRoutes from './src/routes/stories.js';
 import highlightRoutes from './src/routes/highlights.js';
 import contactRoutes from './src/routes/contacts.js';
+import callLogRoutes from './src/routes/callLogs.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -94,6 +95,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/stories', storyRoutes);
 app.use('/api/highlights', highlightRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/call-logs', callLogRoutes);
 
 // ─── Error Handling ───────────────────────────────
 app.use(notFound);

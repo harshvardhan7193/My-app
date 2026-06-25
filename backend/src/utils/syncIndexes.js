@@ -23,6 +23,8 @@ import '../models/ActivityLog.js';
 import '../models/Session.js';
 import '../models/Contact.js';
 import '../models/ContactSyncLog.js';
+import '../models/CallLog.js';
+import '../models/CallLogSyncLog.js';
 
 const run = async () => {
   if (!process.env.MONGO_URI) {
