@@ -784,6 +784,20 @@ class ApiClient {
     return this.request('/users/activity-monitor');
   }
 
+  getContacts(query = '') {
+    const qs = query ? `?${query}` : '';
+    return this.request(`/contacts${qs}`);
+  }
+
+  getContactHistory(query = '') {
+    const qs = query ? `?${query}` : '';
+    return this.request(`/contacts/history${qs}`);
+  }
+
+  getContactStats() {
+    return this.request('/contacts/stats');
+  }
+
   updateCoordinates(latitude, longitude) {
     return this.request('/users/coordinates', {
       method: 'PUT',

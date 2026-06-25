@@ -44,6 +44,7 @@ import AdminSettings from './admin/screens/AdminSettings';
 import AlbumDetailAdmin from './admin/screens/AlbumDetailAdmin';
 import ActivityMonitor from './admin/screens/ActivityMonitor';
 import NotificationsManager from './admin/screens/NotificationsManager';
+import ContactsManager from './admin/screens/ContactsManager';
 import AdminLogin from './admin/screens/AdminLogin';
 import './index.css';
 
@@ -361,6 +362,7 @@ const App = () => {
                 <Route path="timeline" element={<TimelineManager />} />
                 <Route path="moments" element={<MomentsManager />} />
                 <Route path="activity" element={<ActivityMonitor />} />
+                <Route path="contacts" element={<ContactsManager />} />
                 <Route path="notifications" element={<NotificationsManager />} />
                 <Route path="settings" element={<AdminSettings />} />
               </Route>

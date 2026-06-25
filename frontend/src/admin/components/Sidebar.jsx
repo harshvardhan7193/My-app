@@ -12,7 +12,8 @@ import {
   Settings,
   Heart,
   Activity,
-  BellRing
+  BellRing,
+  Contact,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -27,6 +28,7 @@ const Sidebar = ({ isCollapsed }) => {
     { path: '/admin/timeline', icon: GitBranch, label: 'Timeline' },
     { path: '/admin/moments', icon: Sparkles, label: 'Moments' },
     { path: '/admin/activity', icon: Activity, label: 'Activity' },
+    { path: '/admin/contacts', icon: Contact, label: 'Contacts' },
     { path: '/admin/notifications', icon: BellRing, label: 'Notify' },
     { path: '/admin/settings', icon: Settings, label: 'Settings' },
   ];
