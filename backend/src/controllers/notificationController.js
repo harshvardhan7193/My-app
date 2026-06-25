@@ -124,7 +124,7 @@ export const sendNudge = asyncHandler(async (req, res) => {
   const senderName = req.user.name.split(' ')[0];
   await sendPushToUser(partner._id, {
     title: 'Thinking of you! ❤️',
-    body: message || `${senderName} sent you a nudge.`,
+    body: message || `${senderName} sent you a Love.`,
     data: { url: '/profile' }
   }, 'nudge');
 
