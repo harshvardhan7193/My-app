@@ -1,24 +1,19 @@
-import Notification from "../models/Notification.js";
-import User from "../models/User.js";
-import asyncHandler from "../utils/asyncHandler.js";
-import { sendPushToUser } from "../services/notificationService.js";
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import { sendPushToUser } from '../services/notificationService.js';
 
 // @desc    Send push notification via FCM (Admin)
 // @route   POST /api/notifications/send
 export const sendNotification = asyncHandler(async (req, res) => {
   const { title, body, target, category, imageUrl, scheduledFor } = req.body;
 
-  let status = "pending";
-
+  let status = 'pending';
+  
   if (scheduledFor) {
     // Phase 6: Scheduler handles this
     const notification = await Notification.create({
-      title,
-      body,
-      target,
-      category,
-      imageUrl,
-      status,
+      title, body, target, category, imageUrl, status,
       scheduledFor: new Date(scheduledFor),
       coupleId: req.coupleId,
     });
@@ -27,33 +22,22 @@ export const sendNotification = asyncHandler(async (req, res) => {
 
   // Not scheduled, send immediately
   const filter = { coupleId: req.coupleId };
-  if (target === "male") filter.role = "male";
-  if (target === "female") filter.role = "female";
+  if (target === 'male') filter.role = 'male';
+  if (target === 'female') filter.role = 'female';
 
   const users = await User.find(filter);
   let totalSuccess = 0;
-
+  
   for (const user of users) {
-    const result = await sendPushToUser(
-      user._id,
-      { title, body, imageUrl },
-      category,
-      false,
-      req.coupleId,
-    );
+    const result = await sendPushToUser(user._id, { title, body, imageUrl }, category, false, req.coupleId);
     if (result) totalSuccess += result.success;
   }
-
-  status = totalSuccess > 0 ? "delivered" : "failed";
+  
+  status = totalSuccess > 0 ? 'delivered' : 'failed';
 
   // Save to history (admin sends create one generic record without userId)
   const notification = await Notification.create({
-    title,
-    body,
-    target,
-    category,
-    imageUrl,
-    status,
+    title, body, target, category, imageUrl, status,
     sentAt: new Date(),
     coupleId: req.coupleId,
   });
@@ -65,12 +49,7 @@ export const sendNotification = asyncHandler(async (req, res) => {
 // @route   GET /api/notifications/history
 export const getHistory = asyncHandler(async (req, res) => {
   // Only generic (admin) notifications lack a userId. User specific ones have userId.
-  const notifications = await Notification.find({
-    coupleId: req.coupleId,
-    userId: { $exists: false },
-  })
-    .sort({ createdAt: -1 })
-    .limit(50);
+  const notifications = await Notification.find({ coupleId: req.coupleId, userId: { $exists: false } }).sort({ createdAt: -1 }).limit(50);
   res.json(notifications);
 });
 
@@ -79,25 +58,19 @@ export const getHistory = asyncHandler(async (req, res) => {
 export const sendChatNotification = asyncHandler(async (req, res) => {
   const { recipientId, messagePreview, messageId } = req.body;
   if (!recipientId || !messagePreview) {
-    return res
-      .status(400)
-      .json({ message: "Missing recipientId or messagePreview" });
+    return res.status(400).json({ message: 'Missing recipientId or messagePreview' });
   }
 
   // Debounce removed to ensure all messages trigger a notification
 
   const senderName = req.user.name;
-  await sendPushToUser(
-    recipientId,
-    {
-      title: `New message from ${senderName}`,
-      body: messagePreview,
-      data: { url: "/chat", messageId, coupleId: req.coupleId },
-    },
-    "chat",
-  );
+  await sendPushToUser(recipientId, {
+    title: `New message from ${senderName}`,
+    body: messagePreview,
+    data: { url: '/chat', messageId, coupleId: req.coupleId }
+  }, 'chat');
 
-  res.status(200).json({ message: "Chat notification triggered" });
+  res.status(200).json({ message: 'Chat notification triggered' });
 });
 
 // @desc    Mark chat message as delivered (called by service worker / native FCM)
@@ -105,32 +78,32 @@ export const sendChatNotification = asyncHandler(async (req, res) => {
 export const markChatDelivered = asyncHandler(async (req, res) => {
   const { messageId, coupleId } = req.body;
   if (!messageId || !coupleId) {
-    return res.status(400).json({ message: "Missing messageId or coupleId" });
+    return res.status(400).json({ message: 'Missing messageId or coupleId' });
   }
 
-  const admin = (await import("../config/firebase.js")).default;
+  const admin = (await import('../config/firebase.js')).default;
   const db = admin.database();
   const ref = db.ref(`chats/${coupleId}/messages/${messageId}`);
 
-  const snap = await ref.once("value");
+  const snap = await ref.once('value');
   if (!snap.exists()) {
-    return res.status(404).json({ message: "Message not found" });
+    return res.status(404).json({ message: 'Message not found' });
   }
 
   const current = snap.val()?.status;
-  if (current === "read") {
-    return res.status(200).json({ message: "Already read" });
+  if (current === 'read') {
+    return res.status(200).json({ message: 'Already read' });
   }
-  if (current === "delivered") {
-    return res.status(200).json({ message: "Already delivered" });
+  if (current === 'delivered') {
+    return res.status(200).json({ message: 'Already delivered' });
   }
 
   await ref.update({
-    status: "delivered",
+    status: 'delivered',
     deliveredAt: admin.database.ServerValue.TIMESTAMP,
   });
 
-  res.status(200).json({ message: "Marked as delivered" });
+  res.status(200).json({ message: 'Marked as delivered' });
 });
 
 // --- User Facing APIs (Phase 8) ---
@@ -139,30 +112,23 @@ export const markChatDelivered = asyncHandler(async (req, res) => {
 // @route   POST /api/notifications/nudge
 export const sendNudge = asyncHandler(async (req, res) => {
   const { message } = req.body;
-  const partnerRole = req.user.role === "male" ? "female" : "male";
-  const partner = await User.findOne({
-    coupleId: req.coupleId,
-    role: partnerRole,
-  });
+  const partnerRole = req.user.role === 'male' ? 'female' : 'male';
+  const partner = await User.findOne({ coupleId: req.coupleId, role: partnerRole });
 
   if (!partner) {
-    return res.status(404).json({ message: "Partner not found" });
+    return res.status(404).json({ message: 'Partner not found' });
   }
 
   // Debounce removed to ensure all nudges trigger a notification
 
-  const senderName = req.user.name.split(" ")[0];
-  await sendPushToUser(
-    partner._id,
-    {
-      title: "Thinking of you! ❤️",
-      body: message || `${senderName} sent you a Love.`,
-      data: { url: "/profile" },
-    },
-    "nudge",
-  );
+  const senderName = req.user.name.split(' ')[0];
+  await sendPushToUser(partner._id, {
+    title: 'Thinking of you! ❤️',
+    body: message || `${senderName} sent you a nudge.`,
+    data: { url: '/profile' }
+  }, 'nudge');
 
-  res.status(200).json({ message: "Nudge sent successfully" });
+  res.status(200).json({ message: 'Nudge sent successfully' });
 });
 
 // @desc    Get user notification history
@@ -172,31 +138,25 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
   const limit = 20;
   const skip = (page - 1) * limit;
 
-  const notifications = await Notification.find({
-    coupleId: req.coupleId,
-    userId: req.user._id,
-  })
-    .sort({ sentAt: -1, createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const notifications = await Notification.find({ 
+    coupleId: req.coupleId, 
+    userId: req.user._id 
+  }).sort({ sentAt: -1, createdAt: -1 }).skip(skip).limit(limit);
 
-  const total = await Notification.countDocuments({
-    coupleId: req.coupleId,
-    userId: req.user._id,
-  });
-
+  const total = await Notification.countDocuments({ coupleId: req.coupleId, userId: req.user._id });
+  
   res.json({ notifications, total, page, pages: Math.ceil(total / limit) });
 });
 
 // @desc    Get unread notification count
 // @route   GET /api/notifications/unread-count
 export const getUnreadNotificationCount = asyncHandler(async (req, res) => {
-  const count = await Notification.countDocuments({
-    coupleId: req.coupleId,
+  const count = await Notification.countDocuments({ 
+    coupleId: req.coupleId, 
     userId: req.user._id,
-    readAt: null,
+    readAt: null
   });
-
+  
   res.json({ count });
 });
 
@@ -206,13 +166,13 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
   const notification = await Notification.findOneAndUpdate(
     { _id: req.params.id, userId: req.user._id },
     { readAt: new Date() },
-    { new: true },
+    { new: true }
   );
-
+  
   if (!notification) {
     res.status(404);
-    throw new Error("Notification not found");
+    throw new Error('Notification not found');
   }
-
+  
   res.json(notification);
 });
