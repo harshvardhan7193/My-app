@@ -36,6 +36,7 @@ const Dashboard = () => {
   const [partnerUser, setPartnerUser] = useState(null);
   const [settings, setSettings] = useState(null);
   const [memories, setMemories] = useState([]);
+  const [heroMemory, setHeroMemory] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -69,6 +70,28 @@ const Dashboard = () => {
     };
     fetchDashboardData();
   }, [online]);
+
+  useEffect(() => {
+    if (memories.length === 0) {
+      setHeroMemory(null);
+      return;
+    }
+
+    const pickRandomMemory = () => {
+      setHeroMemory((prev) => {
+        if (memories.length === 1) return memories[0];
+        let next = memories[Math.floor(Math.random() * memories.length)];
+        while (prev && next._id === prev._id) {
+          next = memories[Math.floor(Math.random() * memories.length)];
+        }
+        return next;
+      });
+    };
+
+    pickRandomMemory();
+    const intervalId = setInterval(pickRandomMemory, 5000);
+    return () => clearInterval(intervalId);
+  }, [memories]);
 
   const moods = [
     { emoji: '🥰', label: 'Loved' },
@@ -140,8 +163,7 @@ const Dashboard = () => {
     );
   }
 
-  const heroMemory = memories.length > 0 ? memories[0] : null;
-  const recentMemories = memories.slice(1, 6);
+  const recentMemories = memories.slice(0, 5);
 
   return (
     <motion.div
@@ -189,38 +211,49 @@ const Dashboard = () => {
             cursor: 'pointer'
           }}
         >
-          <img src={heroMemory.img || dashboardHero} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '24px',
-            background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
-            color: 'white'
-          }}>
-            <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: '8px' }}>
-              {new Date(heroMemory.date).toLocaleDateString()}
-            </p>
-            <h3 style={{ fontSize: '24px', marginBottom: '4px' }}>{heroMemory.title}</h3>
-            <p style={{ fontSize: '14px', opacity: 0.9 }}>{heroMemory.description}</p>
-          </div>
-          {heroMemory.favorite && (
-            <div style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              background: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(10px)',
-              padding: '8px 16px',
-              borderRadius: '100px',
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: 600
-            }}>
-              Favorite ❤️
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={heroMemory._id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45 }}
+              style={{ position: 'absolute', inset: 0 }}
+            >
+              <img src={heroMemory.img || dashboardHero} alt={heroMemory.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: '24px',
+                background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
+                color: 'white'
+              }}>
+                <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: '8px' }}>
+                  {new Date(heroMemory.date).toLocaleDateString()}
+                </p>
+                <h3 style={{ fontSize: '24px', marginBottom: '4px' }}>{heroMemory.title}</h3>
+                <p style={{ fontSize: '14px', opacity: 0.9 }}>{heroMemory.description}</p>
+              </div>
+              {heroMemory.favorite && (
+                <div style={{
+                  position: 'absolute',
+                  top: '20px',
+                  right: '20px',
+                  background: 'rgba(255,255,255,0.2)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '8px 16px',
+                  borderRadius: '100px',
+                  color: 'white',
+                  fontSize: '12px',
+                  fontWeight: 600
+                }}>
+                  Favorite ❤️
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </motion.div>
       ) : (
         <motion.div

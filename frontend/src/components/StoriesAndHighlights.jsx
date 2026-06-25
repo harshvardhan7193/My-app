@@ -13,6 +13,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
     isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null,
   });
   const [showCreateStory, setShowCreateStory] = useState(false);
+  const [returnToStoryPlayerAfterPost, setReturnToStoryPlayerAfterPost] = useState(false);
   const [showCreateHighlight, setShowCreateHighlight] = useState(false);
   
   // Create Story Form State
@@ -86,8 +87,24 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
         caption
       });
 
-      // Update local state
-      setActiveStories(prev => [...prev, newStory]);
+      const shouldReopenPlayer = returnToStoryPlayerAfterPost;
+      setReturnToStoryPlayerAfterPost(false);
+
+      setActiveStories((prev) => {
+        const updated = [...prev, newStory];
+        if (shouldReopenPlayer) {
+          const uid = currentUserId();
+          const myUpdated = updated.filter((s) => storyUserId(s) === uid);
+          setStoryPlayer({
+            isOpen: true,
+            stories: myUpdated,
+            startIndex: Math.max(0, myUpdated.length - 1),
+            title: 'Your Story',
+            highlightId: null,
+          });
+        }
+        return updated;
+      });
       
       // Reset form
       setMediaFile(null);
@@ -96,6 +113,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
       setShowCreateStory(false);
     } catch (err) {
       console.error('Error posting story:', err);
+      setReturnToStoryPlayerAfterPost(false);
       alert('Failed to post story. Please try again.');
     } finally {
       setUploading(false);
@@ -217,6 +235,14 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
     }
   };
 
+  const openCreateStory = (resumePlayerAfterPost = false) => {
+    if (resumePlayerAfterPost) {
+      setReturnToStoryPlayerAfterPost(true);
+      setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null });
+    }
+    setShowCreateStory(true);
+  };
+
   const openCreateHighlightModal = () => {
     fetchArchive();
     setShowCreateHighlight(true);
@@ -243,7 +269,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h3 style={{ fontSize: '20px', fontWeight: 600 }}>Highlights & Stories</h3>
         <button 
-          onClick={() => setShowCreateStory(true)}
+          onClick={() => openCreateStory()}
           style={{ 
             fontSize: '12px', 
             fontWeight: 600, 
@@ -278,7 +304,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
               if (hasMyStories) {
                 setStoryPlayer({ isOpen: true, stories: myStories, startIndex: 0, title: 'Your Story', highlightId: null });
               } else {
-                setShowCreateStory(true);
+                openCreateStory();
               }
             }}
             style={{
@@ -311,28 +337,29 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
             </div>
           </div>
           <span style={{ fontSize: '12px', marginTop: '6px', fontWeight: 500, opacity: 0.9 }}>You</span>
-          {!hasMyStories && (
-            <div 
-              onClick={() => setShowCreateStory(true)}
-              style={{
-                position: 'absolute',
-                bottom: '22px',
-                right: '0px',
-                backgroundColor: 'var(--blush-pink)',
-                borderRadius: '50%',
-                width: '20px',
-                height: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid var(--card-bg)',
-                cursor: 'pointer',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.15)'
-              }}
-            >
-              <Plus size={12} color="white" strokeWidth={3} />
-            </div>
-          )}
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              openCreateStory();
+            }}
+            style={{
+              position: 'absolute',
+              bottom: '22px',
+              right: '0px',
+              backgroundColor: 'var(--blush-pink)',
+              borderRadius: '50%',
+              width: '20px',
+              height: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px solid var(--card-bg)',
+              cursor: 'pointer',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.15)'
+            }}
+          >
+            <Plus size={12} color="white" strokeWidth={3} />
+          </div>
         </div>
 
         {/* 2. Partner Story Circle */}
@@ -462,6 +489,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
             onClose={() => setStoryPlayer({ isOpen: false, stories: [], startIndex: 0, title: '', highlightId: null })}
             onDelete={handleDeleteStory}
             onRemoveFromHighlight={handleRemoveFromHighlight}
+            onAddStory={() => openCreateStory(true)}
             isOwnStory={isOwnStory}
           />
         )}
@@ -502,7 +530,10 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Create New Story</h3>
-                <X onClick={() => setShowCreateStory(false)} style={{ cursor: 'pointer', color: 'var(--text-sub)' }} />
+                <X onClick={() => {
+                  setReturnToStoryPlayerAfterPost(false);
+                  setShowCreateStory(false);
+                }} style={{ cursor: 'pointer', color: 'var(--text-sub)' }} />
               </div>
 
               {/* Upload Drop Zone / Preview */}
@@ -568,7 +599,10 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
               {/* Submit Buttons */}
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button 
-                  onClick={() => setShowCreateStory(false)}
+                  onClick={() => {
+                    setReturnToStoryPlayerAfterPost(false);
+                    setShowCreateStory(false);
+                  }}
                   className="btn-primary" 
                   style={{ 
                     flex: 1, 
@@ -779,7 +813,7 @@ const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
 };
 
 // PORTAL-STYLE INNER PLAYER COMPONENT FOR FULLSCREEN DISPLAY
-const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete, onRemoveFromHighlight, isOwnStory }) => {
+const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete, onRemoveFromHighlight, onAddStory, isOwnStory }) => {
   const [currentIndex, setCurrentIndex] = useState(player.startIndex);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -859,6 +893,7 @@ const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete, onRemoveFro
   const ownStory = isOwnStory(activeStory);
   const inHighlight = !!player.highlightId;
   const showDelete = ownStory;
+  const showAddStory = ownStory && !inHighlight;
   const showRemoveFromHighlight = inHighlight && !ownStory;
 
   const timeString = () => {
@@ -977,6 +1012,34 @@ const StoryPlayerPortal = ({ player, currentUser, onClose, onDelete, onRemoveFro
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', zIndex: 30 }}>
+            {showAddStory && (
+              <button
+                type="button"
+                aria-label="Add story"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddStory?.();
+                }}
+                style={{
+                  background: 'rgba(255, 183, 197, 0.22)',
+                  border: '1px solid rgba(255, 183, 197, 0.45)',
+                  color: '#ffb7c5',
+                  borderRadius: '999px',
+                  height: '32px',
+                  padding: '0 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                }}
+              >
+                <Plus size={14} />
+                Add
+              </button>
+            )}
             {showDelete && (
               <button
                 type="button"
