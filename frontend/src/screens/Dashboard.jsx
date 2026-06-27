@@ -407,7 +407,8 @@ const Dashboard = () => {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              style={{ width: '100%', background: 'var(--menu-bg)', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative' }}
+              className="popup-card"
+              style={{ width: '100%', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '20px', color: 'var(--text-main)' }}>How are you feeling?</h3>
@@ -451,7 +452,8 @@ const Dashboard = () => {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              style={{ width: '100%', background: 'var(--menu-bg)', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative' }}
+              className="popup-card"
+              style={{ width: '100%', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '20px', color: 'var(--text-main)' }}>New Memory</h3>

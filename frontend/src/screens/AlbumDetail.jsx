@@ -700,16 +700,15 @@ const AlbumDetail = () => {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="popup-card"
               style={{
                 width: '100%',
-                backgroundColor: 'var(--card-bg)',
                 borderTopLeftRadius: '24px',
                 borderTopRightRadius: '24px',
                 padding: '24px 20px',
                 maxHeight: '70vh',
                 display: 'flex',
                 flexDirection: 'column',
-                boxShadow: '0 -10px 40px rgba(0,0,0,0.2)'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -783,16 +782,14 @@ const AlbumDetail = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="popup-card"
               style={{
                 position: 'relative',
                 width: '100%',
                 maxWidth: '340px',
-                backgroundColor: 'var(--card-bg)',
                 borderRadius: '24px',
                 padding: '24px',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                border: '1px solid var(--border-light)',
-                zIndex: 3001
+                zIndex: 3001,
               }}
             >
               <h3 style={{ 

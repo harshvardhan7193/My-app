@@ -151,7 +151,8 @@ const Gallery = () => {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              style={{ width: '100%', background: 'var(--menu-bg)', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative', zIndex: 2001 }}
+              className="popup-card"
+              style={{ width: '100%', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative', zIndex: 2001 }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                 <h3 style={{ fontSize: '22px', color: 'var(--text-main)' }}>Filter by</h3>
@@ -289,7 +290,8 @@ const AddMemoryModal = ({ onClose, onAdd }) => {
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--app-bg)', borderRadius: '32px', padding: '32px', position: 'relative', zIndex: 3001, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', border: '1px solid var(--border-light)' }}
+        className="popup-card"
+        style={{ width: '100%', maxWidth: '400px', borderRadius: '32px', padding: '32px', position: 'relative', zIndex: 3001 }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h3 style={{ fontSize: '24px', color: 'var(--text-main)', fontFamily: 'var(--font-main)' }}>Create Memory</h3>

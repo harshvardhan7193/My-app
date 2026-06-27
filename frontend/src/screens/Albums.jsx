@@ -337,7 +337,8 @@ const Albums = () => {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              style={{ width: '100%', background: 'var(--menu-bg)', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative' }}
+              className="popup-card"
+              style={{ width: '100%', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 60px 24px', position: 'relative' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '22px', color: 'var(--text-main)' }}>{createPrivate ? 'New Private Album' : 'Create New Album'}</h3>
@@ -432,7 +433,8 @@ const Albums = () => {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              style={{ width: '100%', background: 'var(--menu-bg)', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '28px 24px 48px', position: 'relative', maxHeight: '85vh', overflowY: 'auto' }}
+              className="popup-card"
+              style={{ width: '100%', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '28px 24px 48px', position: 'relative', maxHeight: '85vh', overflowY: 'auto' }}
               className="hide-scrollbar"
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>

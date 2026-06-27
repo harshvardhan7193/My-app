@@ -315,7 +315,7 @@ const Profile = () => {
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="premium-card"
+              className="premium-card popup-card"
               style={{
                 width: '100%',
                 borderBottomLeftRadius: 0,
@@ -414,7 +414,7 @@ const Profile = () => {
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="premium-card"
+              className="premium-card popup-card"
               style={{
                 width: '100%',
                 maxWidth: '340px',
