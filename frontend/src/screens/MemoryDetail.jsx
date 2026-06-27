@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Heart, Calendar, Share2, Trash2 } from 'lucide-react';
+import { ChevronLeft, Heart, Calendar, Trash2 } from 'lucide-react';
 import api from '../utils/api';
 
 const MemoryDetail = () => {
@@ -50,19 +50,6 @@ const MemoryDetail = () => {
     } catch (err) {
       console.error('Error deleting memory:', err);
       alert('Failed to delete memory');
-    }
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: memory?.title,
-        text: memory?.description,
-        url: window.location.href,
-      }).catch(err => console.log(err));
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
     }
   };
 
@@ -145,26 +132,6 @@ const MemoryDetail = () => {
           <ChevronLeft size={24} />
         </motion.div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <motion.div 
-            whileTap={{ scale: 0.9 }}
-            onClick={handleShare}
-            style={{ 
-              width: '40px', 
-              height: '40px', 
-              borderRadius: '20px', 
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'rgba(255,255,255,0.9)',
-              cursor: 'pointer'
-            }}
-          >
-            <Share2 size={18} />
-          </motion.div>
-          
           <motion.div 
             whileTap={{ scale: 0.9 }}
             onClick={handleDeleteMemory}

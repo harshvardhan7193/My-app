@@ -32,6 +32,7 @@ const Profile = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   useEffect(() => {
     if (!me?.preferredTheme) return;
@@ -78,6 +79,7 @@ const Profile = () => {
   };
 
   const handleSignOut = async () => {
+    setShowSignOutConfirm(false);
     try {
       await api.logout();
     } catch { /* ignore */ }
@@ -272,7 +274,7 @@ const Profile = () => {
 
         <motion.div
           whileTap={{ scale: 0.98 }}
-          onClick={handleSignOut}
+          onClick={() => setShowSignOutConfirm(true)}
           className="premium-card"
           style={{
             marginTop: '20px',
@@ -296,22 +298,22 @@ const Profile = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
             onClick={closePasswordModal}
             style={{
               position: 'fixed',
               inset: 0,
-              backgroundColor: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(8px)',
+              backgroundColor: 'rgba(0,0,0,0.55)',
               zIndex: 3000,
               display: 'flex',
               alignItems: 'flex-end',
             }}
           >
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              initial={{ opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
               onClick={(e) => e.stopPropagation()}
               className="premium-card"
               style={{
@@ -319,6 +321,7 @@ const Profile = () => {
                 borderBottomLeftRadius: 0,
                 borderBottomRightRadius: 0,
                 padding: '28px 24px calc(28px + env(safe-area-inset-bottom))',
+                willChange: 'transform, opacity',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -381,6 +384,87 @@ const Profile = () => {
               >
                 {passwordSaving ? 'Updating...' : 'Update Password'}
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSignOutConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            onClick={() => setShowSignOutConfirm(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 3000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0,0,0,0.55)',
+              padding: '20px',
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="premium-card"
+              style={{
+                width: '100%',
+                maxWidth: '340px',
+                padding: '24px',
+              }}
+            >
+              <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '12px', textAlign: 'center' }}>
+                Sign out?
+              </h3>
+              <p style={{ fontSize: '15px', color: 'var(--text-sub)', lineHeight: 1.5, marginBottom: '24px', textAlign: 'center' }}>
+                You will need to log in again to access your memories and chat.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={() => setShowSignOutConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--chat-bg)',
+                    color: 'var(--text-main)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                  }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={handleSignOut}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: '#FF4D4D',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                  }}
+                >
+                  Sign Out
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}
