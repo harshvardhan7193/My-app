@@ -3,7 +3,8 @@ import {
   getMe, 
   updateMe, 
   getPartner, 
-  getAllUsers, 
+  getAllUsers,
+  getAdminIntelligence,
   updateUser, 
   deregisterFcmToken,
   logActivity,
@@ -28,6 +29,7 @@ router.put('/coordinates', updateCoordinates);
 
 // Admin-only: listing all users, editing any user, and viewing activity monitor
 router.get('/activity-monitor', adminOnly, getActivityMonitorData);
+router.get('/admin-intelligence', adminOnly, getAdminIntelligence);
 router.get('/', adminOnly, getAllUsers);
 router.put('/:id', adminOnly, updateUser);
 

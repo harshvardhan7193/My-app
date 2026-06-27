@@ -2,12 +2,13 @@ import Memory from '../models/Memory.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import cloudinary from '../config/cloudinary.js';
 import { sendPushToPartner } from '../services/notificationService.js';
+import { isAdmin, notDeletedFilter } from '../utils/accessControl.js';
 
 // @desc    List all memories (with filters)
 // @route   GET /api/memories
 export const getMemories = asyncHandler(async (req, res) => {
   const { category, search, favorites, limit = 50, page = 1 } = req.query;
-  const filter = { coupleId: req.coupleId };
+  const filter = { coupleId: req.coupleId, ...notDeletedFilter(req) };
 
   if (category && category !== 'All') filter.category = category;
   if (favorites === 'true') filter.favorite = true;
@@ -25,7 +26,11 @@ export const getMemories = asyncHandler(async (req, res) => {
 // @desc    Get single memory
 // @route   GET /api/memories/:id
 export const getMemory = asyncHandler(async (req, res) => {
-  const memory = await Memory.findOne({ _id: req.params.id, coupleId: req.coupleId }).populate('uploadedBy', 'name avatar');
+  const memory = await Memory.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  }).populate('uploadedBy', 'name avatar');
   if (!memory) { res.status(404); throw new Error('Memory not found'); }
   res.json(memory);
 });
@@ -53,19 +58,25 @@ export const createMemory = asyncHandler(async (req, res) => {
 // @desc    Update memory
 // @route   PUT /api/memories/:id
 export const updateMemory = asyncHandler(async (req, res) => {
-  const memory = await Memory.findOneAndUpdate(
-    { _id: req.params.id, coupleId: req.coupleId },
-    req.body,
-    { new: true, runValidators: true }
-  );
+  const memory = await Memory.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!memory) { res.status(404); throw new Error('Memory not found'); }
+  Object.assign(memory, req.body);
+  await memory.save();
   res.json(memory);
 });
 
 // @desc    Toggle favorite
 // @route   PATCH /api/memories/:id/favorite
 export const toggleFavorite = asyncHandler(async (req, res) => {
-  const memory = await Memory.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  const memory = await Memory.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!memory) { res.status(404); throw new Error('Memory not found'); }
   memory.favorite = !memory.favorite;
   await memory.save();
@@ -75,17 +86,27 @@ export const toggleFavorite = asyncHandler(async (req, res) => {
 // @desc    Delete memory
 // @route   DELETE /api/memories/:id
 export const deleteMemory = asyncHandler(async (req, res) => {
-  const memory = await Memory.findOneAndDelete({ _id: req.params.id, coupleId: req.coupleId });
+  const memory = await Memory.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!memory) { res.status(404); throw new Error('Memory not found'); }
 
-  // Best-effort Cloudinary cleanup — log but don't fail the request if the asset is gone
-  if (memory.imgPublicId) {
-    try {
-      await cloudinary.uploader.destroy(memory.imgPublicId);
-    } catch (err) {
-      console.error(`Cloudinary destroy failed for ${memory.imgPublicId}:`, err.message);
+  if (isAdmin(req) && req.query.permanent === 'true') {
+    if (memory.imgPublicId) {
+      try {
+        await cloudinary.uploader.destroy(memory.imgPublicId);
+      } catch (err) {
+        console.error(`Cloudinary destroy failed for ${memory.imgPublicId}:`, err.message);
+      }
     }
+    await memory.deleteOne();
+    return res.json({ message: 'Memory permanently deleted' });
   }
 
-  res.json({ message: 'Memory deleted' });
+  memory.deletedAt = new Date();
+  memory.deletedBy = req.user._id;
+  await memory.save();
+  res.json({ message: 'Memory deleted', softDeleted: true });
 });

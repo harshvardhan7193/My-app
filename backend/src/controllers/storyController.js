@@ -2,6 +2,7 @@ import Story from '../models/Story.js';
 import Highlight from '../models/Highlight.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { sendPushToPartner } from '../services/notificationService.js';
+import { isAdmin, notDeletedFilter } from '../utils/accessControl.js';
 
 // @desc    Create a new story
 // @route   POST /api/stories
@@ -47,7 +48,8 @@ export const getActiveStories = asyncHandler(async (req, res) => {
   
   const stories = await Story.find({
     coupleId: req.coupleId,
-    expiresAt: { $gt: now }
+    expiresAt: { $gt: now },
+    ...notDeletedFilter(req),
   })
   .populate('user', 'name avatar role')
   .sort({ createdAt: 1 }); // Chronological order of play
@@ -60,7 +62,8 @@ export const getActiveStories = asyncHandler(async (req, res) => {
 // @access  Private
 export const getArchivedStories = asyncHandler(async (req, res) => {
   const stories = await Story.find({
-    coupleId: req.coupleId
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
   })
   .populate('user', 'name avatar role')
   .sort({ createdAt: -1 }); // Newest first
@@ -86,6 +89,11 @@ export const viewStory = asyncHandler(async (req, res) => {
   if (story.coupleId.toString() !== req.coupleId.toString()) {
     res.status(403);
     throw new Error('Not authorized to view this story');
+  }
+
+  if (!isAdmin(req) && story.deletedAt) {
+    res.status(404);
+    throw new Error('Story not found');
   }
 
   if (!story.views.includes(userId)) {
@@ -115,13 +123,23 @@ export const deleteStory = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to delete this story');
   }
 
-  await Story.deleteOne({ _id: id });
+  if (!isAdmin(req) && story.deletedAt) {
+    res.status(404);
+    throw new Error('Story not found');
+  }
 
-  // Cascade: drop this story id from any highlights that referenced it
-  await Highlight.updateMany(
-    { coupleId: req.coupleId, stories: id },
-    { $pull: { stories: id } }
-  );
+  if (isAdmin(req) && req.query.permanent === 'true') {
+    await Story.deleteOne({ _id: id });
+    await Highlight.updateMany(
+      { coupleId: req.coupleId, stories: id },
+      { $pull: { stories: id } },
+    );
+    return res.json({ message: 'Story permanently deleted' });
+  }
 
-  res.json({ message: 'Story deleted successfully' });
+  story.deletedAt = new Date();
+  story.deletedBy = req.user._id;
+  await story.save();
+
+  res.json({ message: 'Story deleted successfully', softDeleted: true });
 });

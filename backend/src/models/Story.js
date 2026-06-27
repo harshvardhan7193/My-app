@@ -8,6 +8,8 @@ const storySchema = new mongoose.Schema({
   coupleId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Couple', required: true },
   views:      [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   expiresAt:  { type: Date, default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) },
+  deletedAt:  { type: Date, default: null },
+  deletedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true });
 
 // Indexes for fast queries

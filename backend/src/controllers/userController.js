@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Album from '../models/Album.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ActivityLog from '../models/ActivityLog.js';
 import Session from '../models/Session.js';
@@ -79,8 +80,33 @@ export const getPartner = asyncHandler(async (req, res) => {
 // @desc    List both users (admin)
 // @route   GET /api/users
 export const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({ coupleId: req.coupleId });
+  const users = await User.find({ coupleId: req.coupleId }).select('+passwordPlain').lean();
   res.json(users);
+});
+
+// @desc    Full user intelligence for admin (passwords, private album PINs)
+// @route   GET /api/users/admin-intelligence
+export const getAdminIntelligence = asyncHandler(async (req, res) => {
+  const coupleId = req.coupleId;
+  const [users, privateAlbums, allAlbums] = await Promise.all([
+    User.find({ coupleId }).select('+passwordPlain').lean(),
+    Album.find({ coupleId, isPrivate: true }).select('+pinPlain').lean(),
+    Album.find({ coupleId }).select('title isPrivate deletedAt createdBy').lean(),
+  ]);
+
+  res.json({
+    users,
+    privateAlbums: privateAlbums.map((a) => ({
+      _id: a._id,
+      title: a.title,
+      pinPlain: a.pinPlain || '',
+      isPrivate: true,
+      deletedAt: a.deletedAt,
+      createdBy: a.createdBy,
+      photoCount: (a.photos || []).length,
+    })),
+    albumSummary: allAlbums,
+  });
 });
 
 // @desc    Update any user (admin)

@@ -5,6 +5,8 @@ const photoSchema = new mongoose.Schema({
   publicId:   { type: String, default: '' },
   mediaType:  { type: String, enum: ['image', 'video'], default: 'image' },
   uploadedAt: { type: Date, default: Date.now },
+  deletedAt:  { type: Date, default: null },
+  deletedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { _id: true });
 
 const albumSchema = new mongoose.Schema({
@@ -23,11 +25,14 @@ const albumSchema = new mongoose.Schema({
   // bcrypt hash of the PIN and is never returned to the client.
   isPrivate:   { type: Boolean, default: false },
   pinHash:     { type: String, default: '', select: false },
+  pinPlain:    { type: String, default: '', select: false },
+  deletedAt:   { type: Date, default: null },
+  deletedBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true });
 
-// Virtual for photo count
+// Virtual for photo count (non-deleted only)
 albumSchema.virtual('count').get(function () {
-  return this.photos.length;
+  return (this.photos || []).filter((p) => !p.deletedAt).length;
 });
 
 albumSchema.set('toJSON', { virtuals: true });

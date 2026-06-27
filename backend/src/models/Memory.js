@@ -10,6 +10,8 @@ const memorySchema = new mongoose.Schema({
   img:        { type: String, required: true },      // Cloudinary URL
   imgPublicId:{ type: String, default: '' },          // Cloudinary public_id for deletion
   coupleId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Couple', required: true },
+  deletedAt:  { type: Date, default: null },
+  deletedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true });
 
 // Index for efficient queries

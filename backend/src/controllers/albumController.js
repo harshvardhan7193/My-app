@@ -6,6 +6,7 @@ import {
   signAlbumUnlockToken,
   verifyAlbumUnlockToken,
 } from '../utils/albumTokens.js';
+import { isAdmin, notDeletedFilter, visiblePhotos } from '../utils/accessControl.js';
 
 // Best-effort destroy — never throws so a missing/orphan asset doesn't fail a delete request
 const destroyAsset = async (publicId) => {
@@ -32,23 +33,28 @@ const hashPin = async (pin) => {
 // pinHash must never reach the network even though `select: false` already
 // hides it from default queries — defence in depth in case a future
 // controller forgets and adds `+pinHash` to a populate.
-const sanitize = (album) => {
+const sanitize = (album, req) => {
   if (!album) return album;
-  const obj = album.toObject ? album.toObject({ virtuals: true }) : album;
+  const obj = album.toObject ? album.toObject({ virtuals: true }) : { ...album };
   delete obj.pinHash;
+  delete obj.pinPlain;
+  if (req) {
+    obj.photos = visiblePhotos(obj.photos || [], req);
+    obj.count = obj.photos.length;
+  }
   return obj;
 };
 
 // Strips the `photos` array AND description so a private-album listing
 // only reveals title/cover/count/dates while still locked. The cover image
 // is intentionally kept so the user can recognise the album in the vault.
-const stripPrivateContent = (album) => {
-  const safe = sanitize(album);
+const stripPrivateContent = (album, req) => {
+  const safe = sanitize(album, req);
   return {
     ...safe,
     description: '',
     photos: [],
-    count: (album.photos || []).length,
+    count: visiblePhotos(album.photos || [], req).length,
   };
 };
 
@@ -56,6 +62,7 @@ const stripPrivateContent = (album) => {
 // requested album. Sends a 401 + `code` on any mismatch and returns false
 // so the caller can `return` early; the response is already finished.
 const ensureAlbumUnlock = (req, res, album) => {
+  if (isAdmin(req)) return true;
   const token = req.headers['x-album-unlock-token'];
   if (!token) {
     res.status(401).json({ message: 'Album is locked', code: 'ALBUM_LOCKED' });
@@ -78,13 +85,30 @@ const ensureAlbumUnlock = (req, res, album) => {
 // Excludes anything marked private. Private albums only surface inside
 // the vault via getPrivateAlbums().
 export const getAlbums = asyncHandler(async (req, res) => {
-  const albums = await Album.find({
+  const query = {
     coupleId: req.coupleId,
-    isPrivate: { $ne: true },
-  })
+    ...notDeletedFilter(req),
+  };
+  if (!isAdmin(req)) {
+    query.isPrivate = { $ne: true };
+  }
+
+  const albums = await Album.find(query)
     .sort({ date: -1 })
     .populate('createdBy', 'name avatar');
-  res.json(albums.map(sanitize));
+
+  if (isAdmin(req)) {
+    const withPins = await Album.find(query).select('+pinPlain').sort({ date: -1 });
+    const pinMap = new Map(withPins.map((a) => [String(a._id), a.pinPlain]));
+    return res.json(albums.map((a) => ({
+      ...sanitize(a, req),
+      pinPlain: pinMap.get(String(a._id)) || '',
+      isPrivate: !!a.isPrivate,
+      deletedAt: a.deletedAt,
+    })));
+  }
+
+  res.json(albums.map((a) => sanitize(a, req)));
 });
 
 // ── Private album list (vault) ──────────────────────────────────────────
@@ -96,19 +120,45 @@ export const getPrivateAlbums = asyncHandler(async (req, res) => {
   const albums = await Album.find({
     coupleId: req.coupleId,
     isPrivate: true,
+    ...notDeletedFilter(req),
   })
     .sort({ date: -1 })
     .populate('createdBy', 'name avatar');
-  res.json(albums.map(stripPrivateContent));
+
+  if (isAdmin(req)) {
+    const withPins = await Album.find({
+      coupleId: req.coupleId,
+      isPrivate: true,
+      ...notDeletedFilter(req),
+    }).select('+pinPlain');
+    const pinMap = new Map(withPins.map((a) => [String(a._id), a.pinPlain]));
+    return res.json(albums.map((a) => ({
+      ...sanitize(a, req),
+      pinPlain: pinMap.get(String(a._id)) || '',
+    })));
+  }
+
+  res.json(albums.map((a) => stripPrivateContent(a, req)));
 });
 
 export const getAlbum = asyncHandler(async (req, res) => {
-  const album = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId })
-    .populate('createdBy', 'name avatar');
+  const album = await Album.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  }).populate('createdBy', 'name avatar');
   if (!album) { res.status(404); throw new Error('Album not found'); }
 
   if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
-  res.json(sanitize(album));
+
+  if (isAdmin(req)) {
+    const withPin = await Album.findById(album._id).select('+pinPlain');
+    const payload = sanitize(album, req);
+    payload.pinPlain = withPin?.pinPlain || '';
+    return res.json(payload);
+  }
+
+  res.json(sanitize(album, req));
 });
 
 // ── Create ──────────────────────────────────────────────────────────────
@@ -131,10 +181,11 @@ export const createAlbum = asyncHandler(async (req, res) => {
 
   if (isPrivate) {
     doc.pinHash = await hashPin(pin);
+    doc.pinPlain = pin;
   }
 
   const album = await Album.create(doc);
-  res.status(201).json(sanitize(album));
+  res.status(201).json(sanitize(album, req));
 });
 
 // ── Update metadata ─────────────────────────────────────────────────────
@@ -143,7 +194,11 @@ export const createAlbum = asyncHandler(async (req, res) => {
 // orphaning content into the vault). Use dedicated endpoints for that
 // kind of state change if/when needed.
 export const updateAlbum = asyncHandler(async (req, res) => {
-  const album = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  const album = await Album.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!album) { res.status(404); throw new Error('Album not found'); }
 
   if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
@@ -151,7 +206,7 @@ export const updateAlbum = asyncHandler(async (req, res) => {
   const { isPrivate, pin, pinHash, ...allowed } = req.body;
   Object.assign(album, allowed);
   await album.save();
-  res.json(sanitize(album));
+  res.json(sanitize(album, req));
 });
 
 // ── Delete ──────────────────────────────────────────────────────────────
@@ -159,42 +214,71 @@ export const updateAlbum = asyncHandler(async (req, res) => {
 // with a stolen vault token can't wipe sealed content without also
 // knowing the PIN.
 export const deleteAlbum = asyncHandler(async (req, res) => {
-  const album = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  const album = await Album.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!album) { res.status(404); throw new Error('Album not found'); }
 
   if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
 
-  await album.deleteOne();
-  await destroyAsset(album.coverPublicId);
-  await Promise.all((album.photos || []).map((p) => destroyAsset(p.publicId)));
+  if (isAdmin(req) && req.query.permanent === 'true') {
+    await destroyAsset(album.coverPublicId);
+    await Promise.all((album.photos || []).map((p) => destroyAsset(p.publicId)));
+    await album.deleteOne();
+    return res.json({ message: 'Album permanently deleted' });
+  }
 
-  res.json({ message: 'Album deleted' });
+  album.deletedAt = new Date();
+  album.deletedBy = req.user._id;
+  await album.save();
+  res.json({ message: 'Album deleted', softDeleted: true });
 });
 
 export const addPhoto = asyncHandler(async (req, res) => {
-  const album = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  const album = await Album.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!album) { res.status(404); throw new Error('Album not found'); }
 
   if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
 
   album.photos.push(req.body);
   await album.save();
-  res.status(201).json(sanitize(album));
+  res.status(201).json(sanitize(album, req));
 });
 
 export const deletePhoto = asyncHandler(async (req, res) => {
-  const album = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  const album = await Album.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!album) { res.status(404); throw new Error('Album not found'); }
 
   if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
 
-  const removed = album.photos.find(p => p._id.toString() === req.params.photoId);
-  album.photos = album.photos.filter(p => p._id.toString() !== req.params.photoId);
+  const photo = album.photos.id(req.params.photoId);
+  if (!photo) { res.status(404); throw new Error('Photo not found'); }
+  if (!isAdmin(req) && photo.deletedAt) {
+    res.status(404);
+    throw new Error('Photo not found');
+  }
+
+  if (isAdmin(req) && req.query.permanent === 'true') {
+    album.photos.pull(req.params.photoId);
+    await album.save();
+    await destroyAsset(photo.publicId);
+    return res.json(sanitize(album, req));
+  }
+
+  photo.deletedAt = new Date();
+  photo.deletedBy = req.user._id;
   await album.save();
-
-  if (removed) await destroyAsset(removed.publicId);
-
-  res.json(sanitize(album));
+  res.json(sanitize(album, req));
 });
 
 export const deletePhotos = asyncHandler(async (req, res) => {
@@ -203,18 +287,33 @@ export const deletePhotos = asyncHandler(async (req, res) => {
     res.status(400); throw new Error('photoIds must be an array');
   }
 
-  const album = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
+  const album = await Album.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
   if (!album) { res.status(404); throw new Error('Album not found'); }
 
   if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
 
-  const removedPhotos = album.photos.filter(p => photoIds.includes(p._id.toString()));
-  album.photos = album.photos.filter(p => !photoIds.includes(p._id.toString()));
+  const now = new Date();
+  album.photos.forEach((p) => {
+    if (photoIds.includes(p._id.toString()) && !p.deletedAt) {
+      if (isAdmin(req) && req.query.permanent === 'true') {
+        destroyAsset(p.publicId);
+      } else {
+        p.deletedAt = now;
+        p.deletedBy = req.user._id;
+      }
+    }
+  });
+
+  if (isAdmin(req) && req.query.permanent === 'true') {
+    album.photos = album.photos.filter((p) => !photoIds.includes(p._id.toString()));
+  }
+
   await album.save();
-
-  removedPhotos.forEach(p => destroyAsset(p.publicId));
-
-  res.json(sanitize(album));
+  res.json(sanitize(album, req));
 });
 
 export const movePhotos = asyncHandler(async (req, res) => {
@@ -223,8 +322,16 @@ export const movePhotos = asyncHandler(async (req, res) => {
     res.status(400); throw new Error('Missing targetAlbumId or photoIds');
   }
 
-  const sourceAlbum = await Album.findOne({ _id: req.params.id, coupleId: req.coupleId });
-  const targetAlbum = await Album.findOne({ _id: targetAlbumId, coupleId: req.coupleId });
+  const sourceAlbum = await Album.findOne({
+    _id: req.params.id,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
+  const targetAlbum = await Album.findOne({
+    _id: targetAlbumId,
+    coupleId: req.coupleId,
+    ...notDeletedFilter(req),
+  });
 
   if (!sourceAlbum || !targetAlbum) {
     res.status(404); throw new Error('Source or target album not found');
@@ -232,7 +339,7 @@ export const movePhotos = asyncHandler(async (req, res) => {
 
   if (sourceAlbum.isPrivate && !ensureAlbumUnlock(req, res, sourceAlbum)) return;
 
-  if (targetAlbum.isPrivate) {
+  if (targetAlbum.isPrivate && !isAdmin(req)) {
     const targetToken = req.headers['x-target-album-unlock-token'];
     if (!targetToken) {
        res.status(401).json({ message: 'Target album is locked', code: 'TARGET_ALBUM_LOCKED' });
@@ -246,7 +353,9 @@ export const movePhotos = asyncHandler(async (req, res) => {
     }
   }
 
-  const movingPhotos = sourceAlbum.photos.filter(p => photoIds.includes(p._id.toString()));
+  const movingPhotos = sourceAlbum.photos.filter(
+    (p) => photoIds.includes(p._id.toString()) && !p.deletedAt,
+  );
   sourceAlbum.photos = sourceAlbum.photos.filter(p => !photoIds.includes(p._id.toString()));
   
   const newPhotos = movingPhotos.map(p => ({
@@ -260,7 +369,7 @@ export const movePhotos = asyncHandler(async (req, res) => {
   await sourceAlbum.save();
   await targetAlbum.save();
 
-  res.json(sanitize(sourceAlbum));
+  res.json(sanitize(sourceAlbum, req));
 });
 
 // ── Unlock (PIN check) ──────────────────────────────────────────────────
@@ -315,6 +424,7 @@ export const resetAlbumPin = asyncHandler(async (req, res) => {
   if (!album) { res.status(404); throw new Error('Album not found'); }
 
   album.pinHash = await hashPin(pin);
+  album.pinPlain = pin;
   await album.save();
 
   // Mint a fresh unlock token so the user can immediately enter the album
