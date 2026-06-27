@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, MoreVertical, Share2, Loader2, Check, Play, Lock, Trash2, FolderOutput, X } from 'lucide-react';
+import { ChevronLeft, Plus, MoreVertical, Share2, Loader2, Check, Play, Lock, Trash2, FolderOutput, X, Edit2 } from 'lucide-react';
 import api from '../utils/api';
 import {
   getAlbumUnlockToken,
@@ -31,6 +31,10 @@ const AlbumDetail = () => {
   const [selectedPhotos, setSelectedPhotos] = useState(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
   const [availableAlbums, setAvailableAlbums] = useState([]);
   const longPressTimer = useRef(null);
   const justEnteredSelectionMode = useRef(false);
@@ -96,7 +100,34 @@ const AlbumDetail = () => {
   }, [loading, visibleCount, photos.length]);
 
   const handlePlusClick = () => {
+    if (isUploading) return;
     fileInputRef.current?.click();
+  };
+
+  const openEditModal = () => {
+    if (!album) return;
+    setEditTitle(album.title || '');
+    setEditDesc(album.description || '');
+    setShowEditModal(true);
+  };
+
+  const handleSaveAlbumEdit = async () => {
+    if (!editTitle.trim()) return;
+    setEditSaving(true);
+    try {
+      const updated = await api.updateAlbum(
+        albumId,
+        { title: editTitle.trim(), description: editDesc.trim() },
+        { unlockToken: getAlbumUnlockToken(albumId) },
+      );
+      setAlbum(updated);
+      setShowEditModal(false);
+    } catch (err) {
+      console.error('Failed to update album:', err);
+      alert(err.message || 'Failed to update album.');
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const handleFileChange = async (e) => {
@@ -374,10 +405,20 @@ const AlbumDetail = () => {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '16px', color: 'var(--text-sub)' }}>
-            {selectionMode && (
+            {selectionMode ? (
               <motion.div whileTap={{ scale: 0.9 }} onClick={() => { setSelectionMode(false); setSelectedPhotos(new Set()); }} style={{ cursor: 'pointer' }}>
                 <X size={24} />
               </motion.div>
+            ) : (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={openEditModal}
+                aria-label="Edit album"
+                style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-sub)', display: 'flex' }}
+              >
+                <Edit2 size={22} />
+              </motion.button>
             )}
           </div>
         </div>
@@ -756,6 +797,73 @@ const AlbumDetail = () => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Album Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'flex-end' }}
+          >
+            <div style={{ position: 'absolute', inset: 0 }} onClick={() => !editSaving && setShowEditModal(false)} />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              className="popup-card"
+              style={{ width: '100%', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '32px 24px 48px', position: 'relative' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '22px', color: 'var(--text-main)' }}>Edit Album</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={editSaving}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-sub)', padding: 0, display: 'flex' }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-sub)', display: 'block', marginBottom: '8px' }}>Album Name</label>
+                  <input
+                    type="text"
+                    placeholder="Album name"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    disabled={editSaving}
+                    style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-light)', background: 'var(--chat-bg)', fontSize: '15px', color: 'var(--text-main)', outline: 'none', fontFamily: 'var(--font-main)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-sub)', display: 'block', marginBottom: '8px' }}>Description</label>
+                  <textarea
+                    placeholder="Add a nice description..."
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    disabled={editSaving}
+                    rows={3}
+                    style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-light)', background: 'var(--chat-bg)', fontSize: '15px', color: 'var(--text-main)', outline: 'none', fontFamily: 'var(--font-main)', resize: 'vertical', minHeight: '88px' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveAlbumEdit}
+                  disabled={!editTitle.trim() || editSaving}
+                  className="btn-primary"
+                  style={{ width: '100%', border: 'none', marginTop: '4px' }}
+                >
+                  {editSaving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, ChevronRight, X, FolderPlus, Image as ImageIcon, L
 import { useAdminData } from '../data/AdminDataContext';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { getAlbumThumbnail } from '../../utils/albumCover';
 
 const creatorName = (album) => (
   typeof album.createdBy === 'object' ? album.createdBy?.name : album.createdBy
@@ -88,13 +89,15 @@ const AlbumsManager = () => {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
-        {albums.map((album, i) => (
+        {albums.map((album, i) => {
+          const thumb = getAlbumThumbnail(album);
+          return (
           <motion.div key={album._id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
             className={`admin-card${album.deletedAt ? ' admin-deleted-overlay' : ''}`} style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
             {album.deletedAt && <span className="admin-deleted-label">User deleted</span>}
             <div style={{ position: 'relative', height: '200px', background: 'var(--chat-bg)' }}>
-              {album.cover ? (
-                <img src={album.cover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {thumb ? (
+                <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                   <ImageIcon size={40} />
@@ -132,7 +135,8 @@ const AlbumsManager = () => {
               </motion.button>
             </div>
           </motion.div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Create Modal */}

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, X, Lock, ShieldCheck, Eye, EyeOff, KeyRound, RefreshCw } from 'lucide-react';
 import api from '../utils/api';
 import useFetchMe from '../hooks/useFetchMe';
+import { getAlbumThumbnail } from '../utils/albumCover';
 import {
   setVaultToken,
   getVaultToken,
@@ -186,7 +187,6 @@ const Albums = () => {
       const payload = {
         title: newAlbumName.trim(),
         description: newAlbumDesc.trim() || 'A collection of our favorite moments.',
-        cover: 'https://picsum.photos/seed/' + Math.floor(Math.random() * 1000) + '/400/500',
       };
       if (createPrivate) {
         payload.isPrivate = true;
@@ -265,7 +265,8 @@ const Albums = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         {albums.map((album, index) => {
-          const photoCount = album.photos?.length || 0;
+          const photoCount = album.photos?.length || album.count || 0;
+          const thumb = getAlbumThumbnail(album);
           return (
             <motion.div
               key={album._id}
@@ -300,7 +301,23 @@ const Albums = () => {
                   boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
                   zIndex: 2
                 }}>
-                  <img src={album.cover || 'https://picsum.photos/seed/default/400/500'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {thumb ? (
+                    <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(135deg, var(--chat-bg) 0%, rgba(255,183,197,0.25) 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-sub)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                    }}>
+                      Empty album
+                    </div>
+                  )}
                   <div style={{ 
                     position: 'absolute', 
                     bottom: 0, 
@@ -547,14 +564,18 @@ const PrivateAlbumList = ({ albums, onTapAlbum, onResetPin, onCreateNew }) => (
         : `${albums.length} private ${albums.length === 1 ? 'album' : 'albums'} — tap to unlock with PIN.`}
     </p>
 
-    {albums.map((album) => (
+    {albums.map((album) => {
+      const thumb = getAlbumThumbnail(album);
+      return (
       <div
         key={album._id}
         style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px', borderRadius: '18px', background: 'var(--chat-bg)', cursor: 'pointer' }}
         onClick={() => onTapAlbum(album)}
       >
-        <div style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '14px', overflow: 'hidden', flexShrink: 0 }}>
-          <img src={album.cover || 'https://picsum.photos/seed/locked/200'} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.6) blur(2px)' }} />
+        <div style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '14px', overflow: 'hidden', flexShrink: 0, background: 'var(--border-light)' }}>
+          {thumb ? (
+            <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.6) blur(2px)' }} />
+          ) : null}
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Lock size={22} color="white" />
           </div>
@@ -576,7 +597,8 @@ const PrivateAlbumList = ({ albums, onTapAlbum, onResetPin, onCreateNew }) => (
           <RefreshCw size={16} />
         </button>
       </div>
-    ))}
+      );
+    })}
 
     <button
       onClick={onCreateNew}
@@ -587,7 +609,9 @@ const PrivateAlbumList = ({ albums, onTapAlbum, onResetPin, onCreateNew }) => (
   </div>
 );
 
-const PinGate = ({ album, pin, setPin, error, busy, onSubmit, onBack, onForgot }) => (
+const PinGate = ({ album, pin, setPin, error, busy, onSubmit, onBack, onForgot }) => {
+  const thumb = getAlbumThumbnail(album);
+  return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
     <button
       onClick={onBack}
@@ -596,8 +620,10 @@ const PinGate = ({ album, pin, setPin, error, busy, onSubmit, onBack, onForgot }
       ← Back to vault
     </button>
     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-      <div style={{ position: 'relative', width: '56px', height: '56px', borderRadius: '14px', overflow: 'hidden' }}>
-        <img src={album.cover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.6) blur(2px)' }} />
+      <div style={{ position: 'relative', width: '56px', height: '56px', borderRadius: '14px', overflow: 'hidden', background: 'var(--border-light)' }}>
+        {thumb ? (
+          <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.6) blur(2px)' }} />
+        ) : null}
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Lock size={20} color="white" />
         </div>
@@ -637,7 +663,8 @@ const PinGate = ({ album, pin, setPin, error, busy, onSubmit, onBack, onForgot }
       Forgot the PIN? Reset it.
     </button>
   </div>
-);
+  );
+};
 
 const PinReset = ({ pin, setPin, pinConfirm, setPinConfirm, error, busy, onSubmit, onBack }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
