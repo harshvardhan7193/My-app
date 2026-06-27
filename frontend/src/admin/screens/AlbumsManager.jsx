@@ -1,10 +1,23 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit2, Trash2, ChevronRight, X, FolderPlus, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronRight, X, FolderPlus, Image as ImageIcon, Lock } from 'lucide-react';
 import { useAdminData } from '../data/AdminDataContext';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+
+const creatorName = (album) => (
+  typeof album.createdBy === 'object' ? album.createdBy?.name : album.createdBy
+) || 'Unknown';
+
+const formatAlbumDate = (date) => {
+  if (!date) return '—';
+  try {
+    return new Date(date).toLocaleDateString();
+  } catch {
+    return '—';
+  }
+};
 
 const AlbumsManager = () => {
   const navigate = useNavigate();
@@ -28,7 +41,7 @@ const AlbumsManager = () => {
 
   const handleCreate = () => {
     if (!newAlbum.title.trim()) { toast.error('Please enter an album title'); return; }
-    addAlbum({ ...newAlbum, cover: newCoverPreview || `https://picsum.photos/seed/${Date.now()}/400/500`, date: new Date().toISOString().split('T')[0], createdBy: 'Harsh' });
+    addAlbum({ ...newAlbum, cover: newCoverPreview || `https://picsum.photos/seed/${Date.now()}/400/500`, date: new Date().toISOString().split('T')[0] });
     toast.success('Album created! 📸');
     setShowCreateModal(false);
     setNewAlbum({ title: '', description: '', cover: '' });
@@ -42,7 +55,7 @@ const AlbumsManager = () => {
   };
 
   const saveEdit = () => {
-    updateAlbum(editingAlbum.id, { ...editForm, cover: editCoverPreview });
+    updateAlbum(editingAlbum._id, { ...editForm, cover: editCoverPreview });
     toast.success('Album updated!');
     setEditingAlbum(null);
   };
@@ -76,21 +89,34 @@ const AlbumsManager = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
         {albums.map((album, i) => (
-          <motion.div key={album.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
-            className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ position: 'relative', height: '200px' }}>
-              <img src={album.cover} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <motion.div key={album._id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
+            className={`admin-card${album.deletedAt ? ' admin-deleted-overlay' : ''}`} style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+            {album.deletedAt && <span className="admin-deleted-label">User deleted</span>}
+            <div style={{ position: 'relative', height: '200px', background: 'var(--chat-bg)' }}>
+              {album.cover ? (
+                <img src={album.cover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                  <ImageIcon size={40} />
+                </div>
+              )}
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.7) 100%)' }} />
               <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div style={{ color: 'white' }}>
-                  <p style={{ fontSize: '12px', opacity: 0.8, marginBottom: '4px' }}>{album.count} Photos</p>
-                  <h3 style={{ fontSize: '17px' }}>{album.title}</h3>
+                  <p style={{ fontSize: '12px', opacity: 0.8, marginBottom: '4px' }}>{album.count ?? album.photos?.length ?? 0} Photos</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '17px', margin: 0 }}>{album.title}</h3>
+                    {album.isPrivate && <Lock size={14} />}
+                  </div>
+                  {album.isPrivate && album.pinPlain && (
+                    <p style={{ fontSize: '11px', opacity: 0.85, marginTop: '4px' }}>PIN: {album.pinPlain}</p>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <motion.button whileTap={{ scale: 0.9 }} onClick={() => openEdit(album)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     <Edit2 size={14} />
                   </motion.button>
-                  <motion.button whileTap={{ scale: 0.9 }} onClick={() => setDeletingId(album.id)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,82,82,0.4)', backdropFilter: 'blur(8px)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <motion.button whileTap={{ scale: 0.9 }} onClick={() => setDeletingId(album._id)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,82,82,0.4)', backdropFilter: 'blur(8px)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     <Trash2 size={14} />
                   </motion.button>
                 </div>
@@ -98,9 +124,9 @@ const AlbumsManager = () => {
             </div>
             <div style={{ padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{album.date} · by {album.createdBy}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{formatAlbumDate(album.date)} · by {creatorName(album)}</p>
               </div>
-              <motion.button whileHover={{ x: 3 }} onClick={() => navigate(`/admin/albums/${album.id}`)}
+              <motion.button whileHover={{ x: 3 }} onClick={() => navigate(`/admin/albums/${album._id}`)}
                 style={{ background: 'transparent', border: 'none', color: 'var(--blush-pink)', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                 View <ChevronRight size={15} />
               </motion.button>
@@ -146,8 +172,14 @@ const AlbumsManager = () => {
                 <X size={24} onClick={() => setEditingAlbum(null)} style={{ cursor: 'pointer', color: 'var(--text-sub)' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                <div onClick={() => editFileRef.current?.click()} style={{ width: '100%', height: '140px', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
-                  <img src={editCoverPreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div onClick={() => editFileRef.current?.click()} style={{ width: '100%', height: '140px', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', position: 'relative', background: 'var(--chat-bg)' }}>
+                  {editCoverPreview ? (
+                    <img src={editCoverPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                      <ImageIcon size={32} />
+                    </div>
+                  )}
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>Click to change cover</span>
                   </div>
@@ -166,7 +198,7 @@ const AlbumsManager = () => {
         )}
       </AnimatePresence>
 
-      <ConfirmDialog isOpen={!!deletingId} title="Delete Album?" description="All photos in this album will be permanently removed. This cannot be undone." onConfirm={confirmDelete} onCancel={() => setDeletingId(null)} />
+      <ConfirmDialog isOpen={!!deletingId} title="Soft-delete album?" description="Users will no longer see this album. As admin, you can still open it and view all photos including user-deleted ones." onConfirm={confirmDelete} onCancel={() => setDeletingId(null)} />
     </div>
   );
 };

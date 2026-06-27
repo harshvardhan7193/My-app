@@ -11,6 +11,7 @@ export const AdminDataProvider = ({ children }) => {
   const [milestones, setMilestones] = useState([]);
   const [recapSlides, setRecapSlides] = useState([]);
   const [users, setUsers] = useState([]);
+  const [privateAlbums, setPrivateAlbums] = useState([]);
   const [settings, setSettings] = useState({
     anniversaryDate: '',
     autoCelebrate: true,
@@ -35,8 +36,9 @@ export const AdminDataProvider = ({ children }) => {
           usersData,
           settingsData,
           messagesData,
+          intelligenceData,
         ] = await Promise.all([
-          api.getMemories(),
+          api.getMemories({ limit: 500 }),
           api.getAlbums(),
           api.getEvents(),
           api.getMilestones(),
@@ -44,6 +46,7 @@ export const AdminDataProvider = ({ children }) => {
           api.getUsers(),
           api.getSettings(),
           api.getChatMessages().catch(() => []),
+          api.getAdminIntelligence().catch(() => null),
         ]);
 
         setMemories(memoriesData.memories || memoriesData || []);
@@ -51,7 +54,8 @@ export const AdminDataProvider = ({ children }) => {
         setEvents(eventsData || []);
         setMilestones(milestonesData || []);
         setRecapSlides(slidesData || []);
-        setUsers(usersData || []);
+        setUsers(intelligenceData?.users || usersData || []);
+        setPrivateAlbums(intelligenceData?.privateAlbums || []);
         setSettings(settingsData || {});
         setMessages(messagesData || []);
       } catch (err) {
@@ -86,7 +90,9 @@ export const AdminDataProvider = ({ children }) => {
   const deleteMemory = async (id) => {
     try {
       await api.deleteMemory(id);
-      setMemories(prev => prev.filter(m => m._id !== id));
+      setMemories(prev => prev.map(m => (
+        m._id === id ? { ...m, deletedAt: m.deletedAt || new Date().toISOString() } : m
+      )));
     } catch (err) {
       console.error(err);
     }
@@ -123,7 +129,9 @@ export const AdminDataProvider = ({ children }) => {
   const deleteAlbum = async (id) => {
     try {
       await api.deleteAlbum(id);
-      setAlbums(prev => prev.filter(a => a._id !== id));
+      setAlbums(prev => prev.map(a => (
+        a._id === id ? { ...a, deletedAt: a.deletedAt || new Date().toISOString() } : a
+      )));
     } catch (err) {
       console.error(err);
     }
@@ -289,7 +297,7 @@ export const AdminDataProvider = ({ children }) => {
       events, addEvent, updateEvent, deleteEvent,
       milestones, addMilestone, updateMilestone, deleteMilestone, reorderMilestones,
       recapSlides, addSlide, updateSlide, deleteSlide, reorderSlides,
-      users, updateUser,
+      users, updateUser, privateAlbums,
       settings, updateSettings,
       loading,
     }}>

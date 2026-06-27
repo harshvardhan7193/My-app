@@ -5,6 +5,8 @@ import { useAdminData } from '../data/AdminDataContext';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 
+const memoryId = (m) => m._id || m.id;
+const uploaderName = (m) => (typeof m.uploadedBy === 'object' ? m.uploadedBy?.name : m.uploadedBy) || 'Unknown';
 const CATEGORIES = ['All', 'Dates', 'Trips', 'Milestones', 'Favorites'];
 const PAGE_SIZE = 6;
 
@@ -57,14 +59,14 @@ const MemoriesManager = () => {
   };
 
   const saveEdit = () => {
-    updateMemory(editingMemory.id, editForm);
+    updateMemory(memoryId(editingMemory), editForm);
     toast.success('Memory updated!');
     setEditingMemory(null);
   };
 
   const confirmDelete = () => {
     deleteMemory(deletingId);
-    toast.success('Memory deleted.');
+    toast.success('Memory soft-deleted (still visible to admin).');
     setDeletingId(null);
   };
 
@@ -126,34 +128,39 @@ const MemoriesManager = () => {
                   <tr><td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>No memories found.</td></tr>
                 )}
                 {paginated.map(m => (
-                  <tr key={m.id}>
+                  <tr key={memoryId(m)} className={m.deletedAt ? 'admin-deleted-overlay' : ''}>
                     <td style={{ paddingLeft: '24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <div style={{ width: '44px', height: '44px', borderRadius: '10px', overflow: 'hidden' }}>
-                          <img src={m.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ width: '44px', height: '44px', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
+                          <img src={m.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
-                        <span style={{ fontWeight: 600 }}>{m.title}</span>
+                        <div>
+                          <span style={{ fontWeight: 600 }}>{m.title}</span>
+                          {m.deletedAt && <span className="admin-badge danger" style={{ marginLeft: '8px' }}>User deleted</span>}
+                        </div>
                       </div>
                     </td>
                     <td><span className={`admin-badge ${m.category === 'Trips' ? 'purple' : 'pink'}`}>{m.category}</span></td>
-                    <td style={{ color: 'var(--text-sub)', fontSize: '13px' }}>{m.date}</td>
+                    <td style={{ color: 'var(--text-sub)', fontSize: '13px' }}>{m.date ? new Date(m.date).toLocaleDateString() : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px' }}>
-                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: m.uploadedBy === 'Neha' ? 'var(--card-accent-pink)' : 'var(--card-accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>{m.uploadedBy[0]}</div>
-                        {m.uploadedBy}
+                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--card-accent-pink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>{uploaderName(m)[0]}</div>
+                        {uploaderName(m)}
                       </div>
                     </td>
                     <td>
-                      <motion.button whileTap={{ scale: 0.85 }} onClick={() => { toggleFavorite(m.id); toast.info(m.favorite ? 'Removed from favorites' : 'Added to favorites! ❤️'); }}
+                      <motion.button whileTap={{ scale: 0.85 }} onClick={() => { toggleFavorite(memoryId(m)); toast.info(m.favorite ? 'Removed from favorites' : 'Added to favorites! ❤️'); }}
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}>
                         <Heart size={18} color={m.favorite ? 'var(--blush-pink)' : 'var(--text-muted)'} fill={m.favorite ? 'var(--blush-pink)' : 'none'} />
                       </motion.button>
                     </td>
                     <td style={{ textAlign: 'right', paddingRight: '24px' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
-                        <button onClick={() => setViewingMemory(m)} style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer' }}><Eye size={17} /></button>
-                        <button onClick={() => openEdit(m)} style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer' }}><Edit2 size={17} /></button>
-                        <button onClick={() => setDeletingId(m.id)} style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#FF5252', cursor: 'pointer' }}><Trash2 size={17} /></button>
+                        <button type="button" onClick={() => setViewingMemory(m)} style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer' }}><Eye size={17} /></button>
+                        <button type="button" onClick={() => openEdit(m)} style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer' }}><Edit2 size={17} /></button>
+                        {!m.deletedAt && (
+                          <button type="button" onClick={() => setDeletingId(memoryId(m))} style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#FF5252', cursor: 'pointer' }}><Trash2 size={17} /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -167,8 +174,9 @@ const MemoriesManager = () => {
         {viewMode === 'grid' && (
           <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
             {paginated.map(m => (
-              <motion.div key={m.id} whileHover={{ scale: 1.02 }} style={{ borderRadius: '16px', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', cursor: 'pointer' }} onClick={() => setViewingMemory(m)}>
-                <img src={m.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <motion.div key={memoryId(m)} whileHover={{ scale: 1.02 }} className={m.deletedAt ? 'admin-deleted-overlay' : ''} style={{ borderRadius: '16px', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', cursor: 'pointer' }} onClick={() => setViewingMemory(m)}>
+                {m.deletedAt && <span className="admin-deleted-label">User deleted</span>}
+                <img src={m.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '12px' }}>
                   <p style={{ color: 'white', fontWeight: 600, fontSize: '13px' }}>{m.title}</p>
                   <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>{m.category}</p>
@@ -243,7 +251,7 @@ const MemoriesManager = () => {
                 <img src={viewingMemory.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                {[['Category', viewingMemory.category], ['Date', viewingMemory.date], ['By', viewingMemory.uploadedBy]].map(([k, v]) => (
+                {[['Category', viewingMemory.category], ['Date', viewingMemory.date ? new Date(viewingMemory.date).toLocaleDateString() : '—'], ['By', uploaderName(viewingMemory)]].map(([k, v]) => (
                   <div key={k} style={{ padding: '12px', background: 'var(--chat-bg)', borderRadius: '12px' }}>
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>{k}</p>
                     <p style={{ fontWeight: 600, fontSize: '14px' }}>{v}</p>
@@ -287,8 +295,8 @@ const MemoriesManager = () => {
 
       <ConfirmDialog
         isOpen={!!deletingId}
-        title="Delete Memory?"
-        description="This moment will be permanently removed from your collection. This action cannot be undone."
+        title="Soft-delete memory?"
+        description="Users will no longer see this memory. As admin, it stays visible here with a deleted badge."
         onConfirm={confirmDelete}
         onCancel={() => setDeletingId(null)}
       />

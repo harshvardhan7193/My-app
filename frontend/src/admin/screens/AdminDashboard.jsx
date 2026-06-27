@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Image as ImageIcon, MessageSquare, Calendar as CalendarIcon, Sparkles, TrendingUp, Clock, GitBranch, FolderHeart } from 'lucide-react';
@@ -9,6 +9,11 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { memories, albums, messages, events, settings } = useAdminData();
+  const [chartsReady, setChartsReady] = useState(false);
+
+  useEffect(() => {
+    setChartsReady(true);
+  }, []);
 
   const daysTogether = () => {
     if (!settings?.anniversaryDate) return '—';
@@ -71,9 +76,10 @@ const AdminDashboard = () => {
               <TrendingUp size={16} /> +24% vs last month
             </div>
           </div>
-          <div style={{ height: '260px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={activityData}>
+          <div style={{ height: '260px', minWidth: 0 }}>
+            {chartsReady && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <AreaChart data={activityData}>
                 <defs>
                   <linearGradient id="colorUploads" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--blush-pink)" stopOpacity={0.3} />
@@ -86,15 +92,17 @@ const AdminDashboard = () => {
                 <Tooltip contentStyle={{ backgroundColor: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-light)' }} />
                 <Area type="monotone" dataKey="uploads" stroke="var(--blush-pink)" strokeWidth={3} fillOpacity={1} fill="url(#colorUploads)" />
               </AreaChart>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
         <div className="admin-card">
           <h3 style={{ fontSize: '18px', marginBottom: '24px' }}>Category Distribution</h3>
-          <div style={{ height: '260px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryData} layout="vertical" barSize={18}>
+          <div style={{ height: '260px', minWidth: 0 }}>
+            {chartsReady && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <BarChart data={categoryData} layout="vertical" barSize={18}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-light)" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-sub)', fontSize: 12 }} width={80} />
@@ -103,7 +111,8 @@ const AdminDashboard = () => {
                   {categoryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>

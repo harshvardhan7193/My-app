@@ -284,6 +284,10 @@ class ApiClient {
     return this.request('/users');
   }
 
+  getAdminIntelligence() {
+    return this.request('/users/admin-intelligence');
+  }
+
   updateUser(id, updates) {
     return this.request(`/users/${id}`, {
       method: 'PUT',
@@ -445,6 +449,13 @@ class ApiClient {
     return this.request('/auth/verify-password', {
       method: 'POST',
       body: { password },
+    });
+  }
+
+  changePassword(currentPassword, newPassword) {
+    return this.request('/auth/change-password', {
+      method: 'POST',
+      body: { currentPassword, newPassword },
     });
   }
 

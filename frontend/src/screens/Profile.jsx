@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Palette, LogOut, ChevronRight, Heart, Edit2, Send } from 'lucide-react';
+import { Palette, LogOut, ChevronRight, Heart, Edit2, Send, Lock, X } from 'lucide-react';
 import api from '../utils/api';
 import useFetchMe from '../hooks/useFetchMe';
 
@@ -27,6 +27,11 @@ const Profile = () => {
   const { me, setMe } = useFetchMe();
   const [partner, setPartner] = useState(null);
   const [stats, setStats] = useState({ memoriesCount: null, albumsCount: null, daysTogether: null });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
     if (!me?.preferredTheme) return;
@@ -99,8 +104,57 @@ const Profile = () => {
     }
   };
 
+  const openPasswordModal = () => {
+    setPasswordForm({ current: '', next: '', confirm: '' });
+    setPasswordError('');
+    setPasswordSuccess('');
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordForm({ current: '', next: '', confirm: '' });
+    setPasswordError('');
+    setPasswordSuccess('');
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      setPasswordError('Please fill in all fields.');
+      return;
+    }
+    if (passwordForm.next.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+    if (passwordForm.current === passwordForm.next) {
+      setPasswordError('New password must be different from your current password.');
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      await api.changePassword(passwordForm.current, passwordForm.next);
+      setPasswordSuccess('Password updated successfully.');
+      setPasswordForm({ current: '', next: '', confirm: '' });
+      setTimeout(closePasswordModal, 1200);
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to update password.');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const menuItems = [
     { icon: Edit2, label: 'Edit Profile', color: '#D3E4F4', onClick: () => navigate('/edit-profile') },
+    { icon: Lock, label: 'Change Password', color: '#EBE8F3', onClick: openPasswordModal },
     { icon: Palette, label: 'Theme Personalization', color: '#F4D3D3', onClick: toggleTheme },
   ];
 
@@ -235,6 +289,102 @@ const Profile = () => {
           <span style={{ fontSize: '15px', fontWeight: 500, color: '#FF4D4D' }}>Sign Out</span>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closePasswordModal}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 3000,
+              display: 'flex',
+              alignItems: 'flex-end',
+            }}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+              className="premium-card"
+              style={{
+                width: '100%',
+                borderBottomLeftRadius: 0,
+                borderBottomRightRadius: 0,
+                padding: '28px 24px calc(28px + env(safe-area-inset-bottom))',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: '20px', color: 'var(--text-main)' }}>Change Password</h3>
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-sub)', padding: '4px' }}
+                  aria-label="Close"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-sub)', fontSize: '14px', marginBottom: '20px' }}>
+                Enter your current password, then choose a new one (at least 6 characters).
+              </p>
+
+              {[
+                { key: 'current', label: 'Current password', autoComplete: 'current-password' },
+                { key: 'next', label: 'New password', autoComplete: 'new-password' },
+                { key: 'confirm', label: 'Confirm new password', autoComplete: 'new-password' },
+              ].map((field) => (
+                <div key={field.key} style={{ marginBottom: '16px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-sub)', display: 'block', marginBottom: '8px' }}>
+                    {field.label}
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete={field.autoComplete}
+                    value={passwordForm[field.key]}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      borderRadius: '16px',
+                      border: '1px solid var(--border-light)',
+                      background: 'var(--chat-bg)',
+                      fontSize: '15px',
+                      color: 'var(--text-main)',
+                      outline: 'none',
+                      fontFamily: 'var(--font-main)',
+                    }}
+                  />
+                </div>
+              ))}
+
+              {passwordError && (
+                <p style={{ color: '#FF4D4D', fontSize: '13px', marginBottom: '12px' }}>{passwordError}</p>
+              )}
+              {passwordSuccess && (
+                <p style={{ color: '#4CAF50', fontSize: '13px', marginBottom: '12px' }}>{passwordSuccess}</p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleChangePassword}
+                disabled={passwordSaving}
+                className="btn-primary"
+                style={{ width: '100%', border: 'none', marginTop: '4px' }}
+              >
+                {passwordSaving ? 'Updating...' : 'Update Password'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

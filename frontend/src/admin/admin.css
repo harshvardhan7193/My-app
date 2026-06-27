@@ -215,6 +215,45 @@ body.dark-mode {
 
 .admin-badge.pink { background: var(--card-accent-pink); color: var(--blush-pink); }
 .admin-badge.purple { background: var(--card-accent-purple); color: #9c27b0; }
+.admin-badge.warn { background: rgba(255, 152, 0, 0.15); color: #e65100; }
+.admin-badge.muted { background: var(--chat-bg); color: var(--text-muted); }
+.admin-badge.danger { background: rgba(255, 82, 82, 0.12); color: #c62828; }
+
+.admin-sensitive-block {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 82, 82, 0.35);
+  background: rgba(255, 82, 82, 0.04);
+}
+
+.admin-deleted-overlay {
+  opacity: 0.55;
+  filter: grayscale(0.35);
+}
+
+.admin-photo-tile:hover .admin-photo-tile-hover {
+  background: rgba(0, 0, 0, 0.25) !important;
+}
+
+.admin-photo-tile:hover .admin-photo-tile-hover span {
+  opacity: 1 !important;
+}
+
+.admin-deleted-label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: rgba(198, 40, 40, 0.9);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
 /* ─── Buttons, tabs & toolbar (ContactsManager, etc.) ─── */
 .admin-btn {

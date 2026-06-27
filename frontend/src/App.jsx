@@ -1,4 +1,4 @@
-import { useEffect, useState, Component, useRef } from 'react';
+import { useEffect, useState, Component, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import api from './utils/api';
@@ -6,24 +6,6 @@ import { NotificationToastProvider } from './components/NotificationToastProvide
 import DeliveryTracker from './components/DeliveryTracker';
 import { useNotifications } from './hooks/useNotifications';
 import { useLocationTracker } from './hooks/useLocationTracker';
-import Dashboard from './screens/Dashboard';
-import Gallery from './screens/Gallery';
-import ChatGate from './screens/ChatGate';
-import Timeline from './screens/Timeline';
-import Profile from './screens/Profile';
-import EditProfile from './screens/EditProfile';
-import MemoryDetail from './screens/MemoryDetail';
-import SpecialMoments from './screens/SpecialMoments';
-import Login from './screens/Login';
-import Albums from './screens/Albums';
-import MemoryRecap from './screens/MemoryRecap';
-import Calendar from './screens/Calendar';
-import PartnerProfile from './screens/PartnerProfile';
-import AlbumDetail from './screens/AlbumDetail';
-import PhotoView from './screens/PhotoView';
-import ChatMedia from './screens/ChatMedia';
-import NotificationSettings from './screens/NotificationSettings';
-import NotificationCenter from './screens/NotificationCenter';
 import BottomNav from './components/BottomNav';
 import RouteLocker from './components/RouteLocker';
 import RoutePersister from './components/RoutePersister';
@@ -31,22 +13,62 @@ import ShareIntentListener from './components/ShareIntentListener';
 import OfflineBanner from './components/OfflineBanner';
 import { isAppOffline } from './utils/offlineCache';
 import useViewportLayout from './hooks/useViewportLayout';
-import AdminLayout from './admin/AdminLayout';
-import AdminDashboard from './admin/screens/AdminDashboard';
-import UserManagement from './admin/screens/UserManagement';
-import MemoriesManager from './admin/screens/MemoriesManager';
-import AlbumsManager from './admin/screens/AlbumsManager';
-import ChatManager from './admin/screens/ChatManager';
-import CalendarManager from './admin/screens/CalendarManager';
-import TimelineManager from './admin/screens/TimelineManager';
-import MomentsManager from './admin/screens/MomentsManager';
-import AdminSettings from './admin/screens/AdminSettings';
-import AlbumDetailAdmin from './admin/screens/AlbumDetailAdmin';
-import ActivityMonitor from './admin/screens/ActivityMonitor';
-import NotificationsManager from './admin/screens/NotificationsManager';
-import ContactsManager from './admin/screens/ContactsManager';
-import AdminLogin from './admin/screens/AdminLogin';
 import './index.css';
+
+// Core tabs + login — kept eager so bottom-nav switches stay instant.
+import Login from './screens/Login';
+import Dashboard from './screens/Dashboard';
+import Gallery from './screens/Gallery';
+import Albums from './screens/Albums';
+import Calendar from './screens/Calendar';
+import ChatGate from './screens/ChatGate';
+import Profile from './screens/Profile';
+
+// Secondary consumer screens — loaded on first navigation.
+const Timeline = lazy(() => import('./screens/Timeline'));
+const EditProfile = lazy(() => import('./screens/EditProfile'));
+const MemoryDetail = lazy(() => import('./screens/MemoryDetail'));
+const SpecialMoments = lazy(() => import('./screens/SpecialMoments'));
+const MemoryRecap = lazy(() => import('./screens/MemoryRecap'));
+const PartnerProfile = lazy(() => import('./screens/PartnerProfile'));
+const AlbumDetail = lazy(() => import('./screens/AlbumDetail'));
+const PhotoView = lazy(() => import('./screens/PhotoView'));
+const ChatMedia = lazy(() => import('./screens/ChatMedia'));
+const NotificationSettings = lazy(() => import('./screens/NotificationSettings'));
+const NotificationCenter = lazy(() => import('./screens/NotificationCenter'));
+
+// Admin — separate bundle; most users never load these chunks.
+const AdminLogin = lazy(() => import('./admin/screens/AdminLogin'));
+const AdminLayout = lazy(() => import('./admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('./admin/screens/AdminDashboard'));
+const UserManagement = lazy(() => import('./admin/screens/UserManagement'));
+const MemoriesManager = lazy(() => import('./admin/screens/MemoriesManager'));
+const AlbumsManager = lazy(() => import('./admin/screens/AlbumsManager'));
+const ChatManager = lazy(() => import('./admin/screens/ChatManager'));
+const CalendarManager = lazy(() => import('./admin/screens/CalendarManager'));
+const TimelineManager = lazy(() => import('./admin/screens/TimelineManager'));
+const MomentsManager = lazy(() => import('./admin/screens/MomentsManager'));
+const AdminSettings = lazy(() => import('./admin/screens/AdminSettings'));
+const AlbumDetailAdmin = lazy(() => import('./admin/screens/AlbumDetailAdmin'));
+const ActivityMonitor = lazy(() => import('./admin/screens/ActivityMonitor'));
+const NotificationsManager = lazy(() => import('./admin/screens/NotificationsManager'));
+const ContactsManager = lazy(() => import('./admin/screens/ContactsManager'));
+
+const RouteFallback = ({ label = 'Loading...' }) => (
+  <div style={{
+    display: 'flex',
+    height: '100%',
+    minHeight: '40vh',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-sub, #7D7474)',
+    backgroundColor: 'var(--warm-white, #FFFAF8)',
+    fontFamily: 'var(--font-main, Inter, sans-serif)',
+    fontSize: '14px',
+  }}>
+    {label}
+  </div>
+);
 
 // Catches any uncaught render error anywhere below it and shows a fallback
 // instead of unmounting the whole tree (which would leave the WebView showing
@@ -308,7 +330,8 @@ const App = () => {
           <RoutePersister />
           <ShareIntentListener />
           <AnimatePresence mode="wait">
-            <Routes>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
               {/* Consumer Routes (Fixed Width Mobile Container) */}
               <Route element={<MobileContainer />}>
                 {/* Public routes — accessible without auth. If a session already
@@ -366,7 +389,8 @@ const App = () => {
                 <Route path="notifications" element={<NotificationsManager />} />
                 <Route path="settings" element={<AdminSettings />} />
               </Route>
-            </Routes>
+              </Routes>
+            </Suspense>
           </AnimatePresence>
         </NotificationToastProvider>
       </Router>
@@ -422,11 +446,7 @@ const RequireAdmin = ({ children }) => {
   }, []);
 
   if (state.loading) {
-    return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', color: 'var(--text-sub)' }}>
-        Loading admin space...
-      </div>
-    );
+    return <RouteFallback label="Loading admin space..." />;
   }
   if (!state.authed) return <Navigate to="/admin/login" replace />;
   if (!state.allowed) return <Navigate to="/" replace />;

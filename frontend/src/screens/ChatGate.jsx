@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import Chat from './Chat';
 import BottomNav from '../components/BottomNav';
+
+const Chat = lazy(() => import('./Chat'));
 
 // Phases: 'closed' → user sees the door, 'opening' → door swings out,
 // 'flash' → bright bloom masks the cut, 'open' → real <Chat /> takes over.
@@ -66,7 +67,28 @@ const ChatGate = () => {
     }
   }, [phase]);
 
-  if (phase === 'open') return <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}><Chat /></div>;
+  if (phase === 'open') {
+    return (
+      <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Suspense fallback={(
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-sub)',
+            fontSize: '14px',
+          }}
+          >
+            Opening chat...
+          </div>
+        )}
+        >
+          <Chat />
+        </Suspense>
+      </div>
+    );
+  }
 
   const opening = phase === 'opening' || phase === 'flash';
   const flashing = phase === 'flash';
