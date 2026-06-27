@@ -96,56 +96,59 @@ const AlbumDetail = () => {
   }, [loading, visibleCount, photos.length]);
 
   const handlePlusClick = () => {
+    if (isUploading) return;
     fileInputRef.current?.click();
   };
 
   const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      setIsUploading(true);
-      setTotalUploadCount(files.length);
-      setCurrentUploadIndex(0);
-      setUploadProgress(0);
-      try {
-        // Upload each photo/video to Cloudinary and insert to album in MongoDB
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          setCurrentUploadIndex(i + 1);
-          setUploadProgress(0);
-          const isVideo = file.type.startsWith('video');
-          const mediaType = isVideo ? 'video' : 'image';
-
-          const uploadRes = await api.uploadFileWithProgress(file, (percent) => {
-            setUploadProgress(percent);
-          });
-          const secureUrl = uploadRes.url;
-          const publicId = uploadRes.publicId;
-
-          // Append photo/video to album in MongoDB
-          const updatedAlbum = await api.addPhotoToAlbum(
-            albumId,
-            { img: secureUrl, publicId: publicId, mediaType: mediaType },
-            { unlockToken: getAlbumUnlockToken(albumId) },
-          );
-          setAlbum(updatedAlbum);
-          const nextPhotos = updatedAlbum.photos || [];
-          setPhotos(nextPhotos);
-          // Make sure newly uploaded items are visible (they're appended at
-          // the end, which would otherwise be past the current chunk window).
-          setVisibleCount((n) => Math.max(n, nextPhotos.length));
-        }
-
-        setUploadComplete(true);
-        setTimeout(() => setUploadComplete(false), 2000);
-      } catch (err) {
-        console.error('Error uploading files:', err);
-        alert('Failed to upload some files.');
-      } finally {
-        setIsUploading(false);
+    const files = Array.from(e.target.files || []).filter(
+      (f) => f.type.startsWith('image/') || f.type.startsWith('video/'),
+    );
+    if (files.length === 0) {
+      e.target.value = '';
+      return;
+    }
+    setIsUploading(true);
+    setTotalUploadCount(files.length);
+    setCurrentUploadIndex(0);
+    setUploadProgress(0);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setCurrentUploadIndex(i + 1);
         setUploadProgress(0);
-        setTotalUploadCount(0);
-        setCurrentUploadIndex(0);
+        const isVideo = file.type.startsWith('video');
+        const mediaType = isVideo ? 'video' : 'image';
+
+        const uploadRes = await api.uploadFileWithProgress(file, (percent) => {
+          setUploadProgress(percent);
+        });
+        const secureUrl = uploadRes.url;
+        const publicId = uploadRes.publicId;
+
+        const updatedAlbum = await api.addPhotoToAlbum(
+          albumId,
+          { img: secureUrl, publicId: publicId, mediaType: mediaType },
+          { unlockToken: getAlbumUnlockToken(albumId) },
+        );
+        setAlbum(updatedAlbum);
+        const nextPhotos = updatedAlbum.photos || [];
+        setPhotos(nextPhotos);
+        setVisibleCount((n) => Math.max(n, nextPhotos.length));
       }
+
+      setUploadComplete(true);
+      setTimeout(() => setUploadComplete(false), 2000);
+    } catch (err) {
+      console.error('Error uploading files:', err);
+      alert(files.length > 1
+        ? 'Failed to upload some files. Others may have been added.'
+        : 'Failed to upload file.');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setTotalUploadCount(0);
+      setCurrentUploadIndex(0);
     }
     e.target.value = '';
   };
@@ -554,7 +557,9 @@ const AlbumDetail = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <Loader2 size={16} className="animate-spin" style={{ color: 'var(--dusty-rose)', flexShrink: 0 }} />
                     <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
-                      Uploading {totalUploadCount > 1 ? `${currentUploadIndex} of ${totalUploadCount}` : 'memory'}...
+                      {totalUploadCount > 1
+                        ? `Adding ${currentUploadIndex} of ${totalUploadCount}…`
+                        : 'Uploading…'}
                     </span>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--dusty-rose)', marginLeft: 'auto', fontFamily: 'monospace' }}>
                       {uploadProgress}%
@@ -584,7 +589,11 @@ const AlbumDetail = () => {
                   <div style={{ backgroundColor: '#4CAF50', borderRadius: '50%', padding: '2px', display: 'flex' }}>
                     <Check size={14} color="white" strokeWidth={3} />
                   </div>
-                  <span style={{ fontSize: '14px', fontWeight: 500 }}>Media added to album!</span>
+                  <span style={{ fontSize: '14px', fontWeight: 500 }}>
+                    {totalUploadCount > 1
+                      ? `${totalUploadCount} items added!`
+                      : 'Media added to album!'}
+                  </span>
                 </>
               )}
             </motion.div>
@@ -595,9 +604,10 @@ const AlbumDetail = () => {
       {/* Floating Add Button */}
       {!selectionMode && (
         <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: isUploading ? 1 : 1.1 }}
+          whileTap={{ scale: isUploading ? 1 : 0.9 }}
           onClick={handlePlusClick}
+          disabled={isUploading}
           style={{
             position: 'fixed',
             bottom: '60px',
@@ -605,7 +615,9 @@ const AlbumDetail = () => {
             width: '56px',
             height: '56px',
             borderRadius: '28px',
-            background: 'linear-gradient(135deg, var(--blush-pink), var(--dusty-rose))',
+            background: isUploading
+              ? 'var(--text-muted)'
+              : 'linear-gradient(135deg, var(--blush-pink), var(--dusty-rose))',
             color: 'white',
             border: 'none',
             display: 'flex',
@@ -613,7 +625,8 @@ const AlbumDetail = () => {
             justifyContent: 'center',
             boxShadow: '0 8px 24px rgba(255, 183, 197, 0.4)',
             zIndex: 1000,
-            cursor: 'pointer'
+            cursor: isUploading ? 'not-allowed' : 'pointer',
+            opacity: isUploading ? 0.7 : 1,
           }}
         >
           <Plus size={24} />
