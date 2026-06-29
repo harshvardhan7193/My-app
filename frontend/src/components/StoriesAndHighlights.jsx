@@ -1133,6 +1133,13 @@ const StoryPlayerPortal = ({
   const partnerId = () => String(partnerUser?._id || partnerUser?.id || "");
 
   useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("aura-story-screen");
+    window.__auraApplyViewport?.();
+    return () => root.classList.remove("aura-story-screen");
+  }, []);
+
+  useEffect(() => {
     setProgress(0);
     setHoldPaused(false);
     setReplyFocused(false);

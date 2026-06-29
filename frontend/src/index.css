@@ -64,10 +64,10 @@
   --aura-vh: 100dvh;
   --aura-vw: 100vw;
   --aura-scale: 1;
-  --aura-story-chrome-gap: 10px;
-  --aura-story-pad-top: max(env(safe-area-inset-top, 0px), 20px);
-  --aura-story-pad-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
-  --aura-story-reply-offset: 130px;
+  --aura-story-chrome-gap: 12px;
+  --aura-story-pad-top: max(env(safe-area-inset-top, 0px), 36px);
+  --aura-story-pad-bottom: max(env(safe-area-inset-bottom, 0px), 48px);
+  --aura-story-reply-offset: 150px;
 }
 
 body.dark-mode {
@@ -290,6 +290,9 @@ html.aura-keyboard-open .mobile-container {
   align-items: center;
   justify-content: center;
   user-select: none;
+  box-sizing: border-box;
+  padding-top: max(env(safe-area-inset-top, 0px), var(--aura-safe-top, 0px));
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--aura-safe-bottom, 0px));
 }
 
 .story-player-frame {
@@ -303,29 +306,42 @@ html.aura-keyboard-open .mobile-container {
   background: #0a0a0a;
   overflow: hidden;
   box-sizing: border-box;
-  padding-top: var(
-    --aura-story-pad-top,
-    max(
-      var(--app-pad-top, max(env(safe-area-inset-top, 0px), 12px)),
-      calc(env(safe-area-inset-top, 0px) + 12px)
-    )
+  padding-top: max(
+    var(--aura-story-pad-top),
+    calc(env(safe-area-inset-top, 0px) + 32px),
+    calc(var(--aura-safe-top, 0px) + 32px),
+    40px
   );
-  padding-bottom: var(
-    --aura-story-pad-bottom,
-    max(
-      var(--aura-composer-bottom, max(var(--app-pad-bottom, 12px), env(safe-area-inset-bottom, 0px))),
-      calc(env(safe-area-inset-bottom, 0px) + 16px)
-    )
+  padding-bottom: max(
+    var(--aura-story-pad-bottom),
+    calc(env(safe-area-inset-bottom, 0px) + 40px),
+    calc(var(--aura-safe-bottom, 0px) + 40px),
+    64px
+  );
+}
+
+html.aura-native-shell .story-player-frame {
+  padding-top: max(
+    var(--aura-story-pad-top),
+    calc(env(safe-area-inset-top, 0px) + 40px),
+    calc(var(--aura-safe-top, 0px) + 40px),
+    56px
+  );
+  padding-bottom: max(
+    var(--aura-story-pad-bottom),
+    calc(env(safe-area-inset-bottom, 0px) + 48px),
+    calc(var(--aura-safe-bottom, 0px) + 48px),
+    88px
   );
 }
 
 html.aura-keyboard-open .story-player-frame {
-  padding-bottom: max(12px, var(--aura-story-chrome-gap, 10px));
+  padding-bottom: max(16px, var(--aura-story-chrome-gap, 12px));
 }
 
 .story-player-progress {
   position: absolute;
-  top: var(--aura-story-chrome-gap, 10px);
+  top: calc(var(--aura-story-chrome-gap, 12px) + 6px);
   left: 12px;
   right: 12px;
   display: flex;
@@ -335,7 +351,7 @@ html.aura-keyboard-open .story-player-frame {
 
 .story-player-header {
   position: absolute;
-  top: calc(var(--aura-story-chrome-gap, 10px) + 14px);
+  top: calc(var(--aura-story-chrome-gap, 12px) + 22px);
   left: 16px;
   right: 16px;
   display: flex;
@@ -346,7 +362,7 @@ html.aura-keyboard-open .story-player-frame {
 }
 
 html.aura-compact .story-player-header {
-  top: calc(var(--aura-story-chrome-gap, 8px) + 12px);
+  top: calc(var(--aura-story-chrome-gap, 10px) + 18px);
 }
 
 .story-player-caption {
@@ -365,15 +381,15 @@ html.aura-compact .story-player-header {
 }
 
 .story-player-caption--interactive {
-  bottom: calc(var(--aura-story-reply-offset, 130px) + var(--aura-story-chrome-gap, 10px));
+  bottom: calc(var(--aura-story-reply-offset, 150px) + var(--aura-story-chrome-gap, 12px));
 }
 
 .story-player-caption--own {
-  bottom: calc(48px + var(--aura-story-chrome-gap, 10px));
+  bottom: calc(56px + var(--aura-story-chrome-gap, 12px));
 }
 
 .story-player-caption--default {
-  bottom: var(--aura-story-chrome-gap, 10px);
+  bottom: calc(var(--aura-story-chrome-gap, 12px) + 8px);
 }
 
 .story-player-reply-bar {
@@ -382,7 +398,7 @@ html.aura-compact .story-player-header {
   left: 0;
   right: 0;
   z-index: 25;
-  padding: 12px 16px calc(var(--aura-story-chrome-gap, 10px) + 6px);
+  padding: 14px 16px calc(var(--aura-story-chrome-gap, 12px) + 12px);
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.85) 0%,
@@ -400,7 +416,7 @@ html.aura-compact .story-player-header {
   justify-content: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 10px 16px calc(10px + var(--aura-story-chrome-gap, 10px) * 0.5);
+  padding: 12px 16px calc(14px + var(--aura-story-chrome-gap, 12px) * 0.75);
   color: white;
   z-index: 15;
   font-size: 12px;

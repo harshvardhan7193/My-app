@@ -66,17 +66,23 @@ export function applyViewportMetrics(native = null) {
     keyboard > 48 ? 8 : Math.max(8, safeBottom, padBottom, isNativeShell ? 48 : 0);
   root.style.setProperty('--aura-composer-bottom', `${composerBottom}px`);
 
-  // Fullscreen story viewer — extra chrome inset beyond nav/composer padding.
-  const storyChromeGap = Math.max(8, Math.round(appWidth * 0.022));
-  const storyTopBuffer = Math.round(appWidth * 0.02 + appHeight * 0.014);
-  const storyBottomBuffer = Math.round(appWidth * 0.032 + (isNativeShell ? 10 : 6));
-  const storyPadTop = padTop + storyTopBuffer;
+  // Fullscreen story viewer — generous inset; Android WebView often reports 0 safe-area.
+  const storyChromeGap = Math.max(12, Math.round(appWidth * 0.028));
+  const storyTopBuffer = Math.round(appWidth * 0.04 + appHeight * 0.022);
+  const storyBottomBuffer = Math.round(appWidth * 0.05 + (isNativeShell ? 20 : 12));
+  const storyTopFloor = Math.max(safeTop, padTop, isNativeShell ? 44 : 28);
+  const storyBottomFloor = Math.max(
+    safeBottom,
+    padBottom,
+    composerBottom,
+    isNativeShell ? 72 : 32,
+  );
+  const storyPadTop = storyTopFloor + storyTopBuffer + (isNativeShell ? 12 : 6);
   const storyPadBottom =
     keyboard > 48
-      ? Math.max(12, storyBottomBuffer)
-      : Math.max(composerBottom, padBottom, safeBottom, isNativeShell ? 56 : 20) +
-        storyBottomBuffer;
-  const storyReplyOffset = Math.round(112 + appWidth * 0.05 + storyBottomBuffer * 0.35);
+      ? Math.max(16, storyBottomBuffer)
+      : storyBottomFloor + storyBottomBuffer + (isNativeShell ? 16 : 8);
+  const storyReplyOffset = Math.round(128 + appWidth * 0.08 + storyPadBottom * 0.45);
 
   root.style.setProperty('--aura-story-chrome-gap', `${storyChromeGap}px`);
   root.style.setProperty('--aura-story-pad-top', `${storyPadTop}px`);
@@ -89,6 +95,7 @@ export function applyViewportMetrics(native = null) {
   root.classList.toggle('aura-compact', appHeight < 680);
   root.classList.toggle('aura-tall', appHeight >= 820);
   root.classList.toggle('aura-narrow', appWidth < 360);
+  root.classList.toggle('aura-native-shell', isNativeShell);
 }
 
 export function initViewportLayoutListeners() {
