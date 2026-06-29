@@ -66,6 +66,23 @@ export function applyViewportMetrics(native = null) {
     keyboard > 48 ? 8 : Math.max(8, safeBottom, padBottom, isNativeShell ? 48 : 0);
   root.style.setProperty('--aura-composer-bottom', `${composerBottom}px`);
 
+  // Fullscreen story viewer — extra chrome inset beyond nav/composer padding.
+  const storyChromeGap = Math.max(8, Math.round(appWidth * 0.022));
+  const storyTopBuffer = Math.round(appWidth * 0.02 + appHeight * 0.014);
+  const storyBottomBuffer = Math.round(appWidth * 0.032 + (isNativeShell ? 10 : 6));
+  const storyPadTop = padTop + storyTopBuffer;
+  const storyPadBottom =
+    keyboard > 48
+      ? Math.max(12, storyBottomBuffer)
+      : Math.max(composerBottom, padBottom, safeBottom, isNativeShell ? 56 : 20) +
+        storyBottomBuffer;
+  const storyReplyOffset = Math.round(112 + appWidth * 0.05 + storyBottomBuffer * 0.35);
+
+  root.style.setProperty('--aura-story-chrome-gap', `${storyChromeGap}px`);
+  root.style.setProperty('--aura-story-pad-top', `${storyPadTop}px`);
+  root.style.setProperty('--aura-story-pad-bottom', `${storyPadBottom}px`);
+  root.style.setProperty('--aura-story-reply-offset', `${storyReplyOffset}px`);
+
   const scale = Math.min(1, Math.max(0.88, appHeight / 760));
   root.style.setProperty('--aura-scale', String(scale));
 

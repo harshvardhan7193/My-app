@@ -20,11 +20,6 @@ import useOnlineStatus from "../hooks/useOnlineStatus";
 
 const STORY_QUICK_EMOJIS = ["❤️", "😂", "💋", "😘", "🔥", "👏"];
 
-const STORY_SAFE_TOP =
-  "var(--app-pad-top, max(env(safe-area-inset-top, 0px), 12px))";
-const STORY_SAFE_BOTTOM =
-  "var(--aura-composer-bottom, max(var(--app-pad-bottom, 12px), env(safe-area-inset-bottom, 0px)))";
-
 const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
   const [activeStories, setActiveStories] = useState([]);
   const [highlights, setHighlights] = useState([]);
@@ -1351,32 +1346,8 @@ const StoryPlayerPortal = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "black",
-        zIndex: 5000,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        userSelect: "none",
-      }}>
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "430px",
-          height: "100%",
-          position: "relative",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: "#0a0a0a",
-          overflow: "hidden",
-          boxSizing: "border-box",
-          paddingTop: STORY_SAFE_TOP,
-          paddingBottom: STORY_SAFE_BOTTOM,
-        }}>
+      className="story-player-backdrop">
+      <div className="story-player-frame">
         <div
           onClick={handleTap}
           onMouseDown={() => setHoldPaused(true)}
@@ -1413,16 +1384,7 @@ const StoryPlayerPortal = ({
           ))}
         </AnimatePresence>
 
-        <div
-          style={{
-            position: "absolute",
-            top: "8px",
-            left: "12px",
-            right: "12px",
-            display: "flex",
-            gap: "4px",
-            zIndex: 20,
-          }}>
+        <div className="story-player-progress">
           {player.stories.map((s, idx) => {
             let width = "0%";
             if (idx < currentIndex) width = "100%";
@@ -1451,18 +1413,7 @@ const StoryPlayerPortal = ({
           })}
         </div>
 
-        <div
-          style={{
-            position: "absolute",
-            top: "24px",
-            left: "16px",
-            right: "16px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            zIndex: 20,
-            color: "white",
-          }}>
+        <div className="story-player-header">
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div
               style={{
@@ -1627,42 +1578,19 @@ const StoryPlayerPortal = ({
 
         {activeStory.caption && (
           <div
-            style={{
-              position: "absolute",
-              bottom: canInteract
-                ? "130px"
+            className={`story-player-caption ${
+              canInteract
+                ? "story-player-caption--interactive"
                 : ownStory && !inHighlight
-                  ? "64px"
-                  : "32px",
-              left: "16px",
-              right: "16px",
-              padding: "16px",
-              backgroundColor: "rgba(0,0,0,0.6)",
-              backdropFilter: "blur(10px)",
-              borderRadius: "16px",
-              color: "white",
-              textAlign: "center",
-              fontSize: "14px",
-              zIndex: 15,
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-            }}>
+                  ? "story-player-caption--own"
+                  : "story-player-caption--default"
+            }`}>
             {activeStory.caption}
           </div>
         )}
 
         {canInteract && (
-          <div
-            onClick={stopBarEvent}
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              zIndex: 25,
-              padding: "12px 16px 12px",
-              background:
-                "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%)",
-            }}>
+          <div className="story-player-reply-bar" onClick={stopBarEvent}>
             <div
               style={{
                 display: "flex",
@@ -1791,21 +1719,7 @@ const StoryPlayerPortal = ({
         )}
 
         {ownStory && !inHighlight && (
-          <div
-            style={{
-              minHeight: "48px",
-              backgroundColor: "rgba(0,0,0,0.8)",
-              borderTop: "1px solid rgba(255,255,255,0.1)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexWrap: "wrap",
-              gap: "12px",
-              padding: "10px 16px",
-              color: "white",
-              zIndex: 15,
-              fontSize: "12px",
-            }}>
+          <div className="story-player-stats-bar">
             <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <Eye size={16} />
               {activeStory.views?.length || 0} view
