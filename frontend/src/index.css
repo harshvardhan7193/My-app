@@ -179,6 +179,30 @@ html, body, #root, .mobile-container {
   touch-action: manipulation;
 }
 
+/* Native-app feel: no long-press text selection or web callouts in consumer UI */
+.mobile-container,
+.mobile-container * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.mobile-container input,
+.mobile-container textarea,
+.mobile-container select,
+.mobile-container [contenteditable="true"],
+.mobile-container .allow-text-select {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.mobile-container img,
+.mobile-container video {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
 input,
 textarea,
 select {
