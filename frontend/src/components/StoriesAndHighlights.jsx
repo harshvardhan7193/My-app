@@ -20,6 +20,11 @@ import useOnlineStatus from "../hooks/useOnlineStatus";
 
 const STORY_QUICK_EMOJIS = ["❤️", "😂", "💋", "😘", "🔥", "👏"];
 
+const STORY_SAFE_TOP =
+  "var(--app-pad-top, max(env(safe-area-inset-top, 0px), 12px))";
+const STORY_SAFE_BOTTOM =
+  "var(--aura-composer-bottom, max(var(--app-pad-bottom, 12px), env(safe-area-inset-bottom, 0px)))";
+
 const StoriesAndHighlights = ({ currentUser, partnerUser }) => {
   const [activeStories, setActiveStories] = useState([]);
   const [highlights, setHighlights] = useState([]);
@@ -1368,6 +1373,9 @@ const StoryPlayerPortal = ({
           justifyContent: "space-between",
           background: "#0a0a0a",
           overflow: "hidden",
+          boxSizing: "border-box",
+          paddingTop: STORY_SAFE_TOP,
+          paddingBottom: STORY_SAFE_BOTTOM,
         }}>
         <div
           onClick={handleTap}
@@ -1408,7 +1416,7 @@ const StoryPlayerPortal = ({
         <div
           style={{
             position: "absolute",
-            top: "20px",
+            top: "8px",
             left: "12px",
             right: "12px",
             display: "flex",
@@ -1446,7 +1454,7 @@ const StoryPlayerPortal = ({
         <div
           style={{
             position: "absolute",
-            top: "36px",
+            top: "24px",
             left: "16px",
             right: "16px",
             display: "flex",
@@ -1651,7 +1659,7 @@ const StoryPlayerPortal = ({
               left: 0,
               right: 0,
               zIndex: 25,
-              padding: "12px 16px 20px",
+              padding: "12px 16px 12px",
               background:
                 "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%)",
             }}>
