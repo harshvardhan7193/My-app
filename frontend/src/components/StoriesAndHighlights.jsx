@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -17,6 +18,9 @@ import {
 import api from "../utils/api";
 import { pushMessage } from "../config/firebase";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import useStorySafeInsets, {
+  storyChromeStyle,
+} from "../hooks/useStorySafeInsets";
 
 const STORY_QUICK_EMOJIS = ["❤️", "😂", "💋", "😘", "🔥", "👏"];
 
@@ -1109,6 +1113,7 @@ const StoryPlayerPortal = ({
   isOwnStory,
 }) => {
   const online = useOnlineStatus();
+  const insets = useStorySafeInsets();
   const [currentIndex, setCurrentIndex] = useState(player.startIndex);
   const [progress, setProgress] = useState(0);
   const [holdPaused, setHoldPaused] = useState(false);
@@ -1348,13 +1353,19 @@ const StoryPlayerPortal = ({
 
   const stopBarEvent = (e) => e.stopPropagation();
 
-  return (
+  const replyBarHeight = canInteract ? 132 : 0;
+  const statsBarHeight = ownStory && !inHighlight ? 48 : 0;
+
+  const storyOverlay = (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="story-player-backdrop">
-      <div className="story-player-frame">
+      className="story-player-backdrop"
+      style={{ position: "fixed", inset: 0 }}>
+      <div
+        className="story-player-frame"
+        style={{ paddingTop: 0, paddingBottom: 0, height: "100%" }}>
         <div
           onClick={handleTap}
           onMouseDown={() => setHoldPaused(true)}
@@ -1362,9 +1373,9 @@ const StoryPlayerPortal = ({
           onTouchStart={() => setHoldPaused(true)}
           onTouchEnd={() => setHoldPaused(false)}
           style={{
-            position: "absolute",
+            position: "fixed",
             inset: 0,
-            zIndex: 10,
+            zIndex: 5010,
           }}
         />
 
@@ -1391,7 +1402,9 @@ const StoryPlayerPortal = ({
           ))}
         </AnimatePresence>
 
-        <div className="story-player-progress">
+        <div
+          className="story-player-progress"
+          style={{ ...storyChromeStyle(insets, "top", 2), padding: "0 12px" }}>
           {player.stories.map((s, idx) => {
             let width = "0%";
             if (idx < currentIndex) width = "100%";
@@ -1420,7 +1433,9 @@ const StoryPlayerPortal = ({
           })}
         </div>
 
-        <div className="story-player-header">
+        <div
+          className="story-player-header"
+          style={{ ...storyChromeStyle(insets, "top", 14), padding: "0 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div
               style={{
@@ -1560,11 +1575,13 @@ const StoryPlayerPortal = ({
 
         <div
           style={{
-            flex: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "#000",
+            position: "fixed",
+            inset: 0,
+            zIndex: 5005,
           }}>
           {activeStory.mediaType === "video" ? (
             <video
@@ -1572,12 +1589,12 @@ const StoryPlayerPortal = ({
               autoPlay
               playsInline
               muted
-              style={{ width: "100%", maxHeight: "80%", objectFit: "contain" }}
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
             />
           ) : (
             <img
               src={activeStory.mediaUrl}
-              style={{ width: "100%", maxHeight: "80%", objectFit: "contain" }}
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
               alt="Story Content"
             />
           )}
@@ -1591,13 +1608,39 @@ const StoryPlayerPortal = ({
                 : ownStory && !inHighlight
                   ? "story-player-caption--own"
                   : "story-player-caption--default"
-            }`}>
-            {activeStory.caption}
+            }`}
+            style={{
+              ...storyChromeStyle(
+                insets,
+                "bottom",
+                Math.max(replyBarHeight, statsBarHeight) + 8,
+              ),
+              padding: "0 16px",
+              background: "none",
+              border: "none",
+              backdropFilter: "none",
+            }}>
+            <div
+              style={{
+                padding: "16px",
+                backgroundColor: "rgba(0,0,0,0.6)",
+                backdropFilter: "blur(10px)",
+                borderRadius: "16px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }}>
+              {activeStory.caption}
+            </div>
           </div>
         )}
 
         {canInteract && (
-          <div className="story-player-reply-bar" onClick={stopBarEvent}>
+          <div
+            className="story-player-reply-bar"
+            onClick={stopBarEvent}
+            style={{
+              ...storyChromeStyle(insets, "bottom", 0),
+              padding: "14px 16px 12px",
+            }}>
             <div
               style={{
                 display: "flex",
@@ -1726,7 +1769,12 @@ const StoryPlayerPortal = ({
         )}
 
         {ownStory && !inHighlight && (
-          <div className="story-player-stats-bar">
+          <div
+            className="story-player-stats-bar"
+            style={{
+              ...storyChromeStyle(insets, "bottom", 0),
+              padding: "12px 16px",
+            }}>
             <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <Eye size={16} />
               {activeStory.views?.length || 0} view
@@ -1753,6 +1801,8 @@ const StoryPlayerPortal = ({
       </div>
     </motion.div>
   );
+
+  return createPortal(storyOverlay, document.body);
 };
 
 export default StoriesAndHighlights;
