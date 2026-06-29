@@ -7,8 +7,6 @@ import useOnlineStatus from '../hooks/useOnlineStatus';
 import useFetchMe from '../hooks/useFetchMe';
 import { putCache, getCache, isAppOffline } from '../utils/offlineCache';
 import { subscribeMessages, pushMessage, searchAllMessages, updateMessageStatus, editMessageText, setTypingStatus, subscribePartnerTyping } from '../config/firebase';
-import chatBgLight from '../assets/images/chat background/theme1 light.jpg';
-import chatBgDark from '../assets/images/chat background/theme1 dark.png';
 
 const READ_TICK_COLOR = '#53bdeb';
 
@@ -108,9 +106,6 @@ const Chat = () => {
   const [longPressedMsg, setLongPressedMsg] = useState(null);
   const [contextMenuPos, setContextMenuPos] = useState(null);
   const [showInfoModal, setShowInfoModal] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(
-    typeof document !== 'undefined' && document.body.classList.contains('dark-mode')
-  );
   const [composerActive, setComposerActive] = useState(false);
   const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const inputAreaRef = useRef(null);
@@ -275,23 +270,6 @@ const Chat = () => {
       setMessageLimit((n) => n + PAGE_SIZE);
     }
   };
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-
-    const updateTheme = () => {
-      setIsDarkMode(document.body.classList.contains('dark-mode'));
-    };
-
-    const observer = new MutationObserver(updateTheme);
-    observer.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-    updateTheme();
-
-    return () => observer.disconnect();
-  }, []);
 
   // Bootstrap: resolve partner once on mount (me comes from useFetchMe).
   useEffect(() => {
@@ -858,10 +836,6 @@ const Chat = () => {
         overflow: 'hidden',
         position: 'relative',
         backgroundColor: 'var(--chat-bg)',
-        backgroundImage: `linear-gradient(${isDarkMode ? 'rgba(0,0,0,0.45), rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.25), rgba(255,255,255,0.25)'}), url("${isDarkMode ? chatBgDark : chatBgLight}")`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
       }}
     >
       {/* Chat Header */}
