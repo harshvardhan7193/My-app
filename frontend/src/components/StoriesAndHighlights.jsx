@@ -1111,7 +1111,9 @@ const StoryPlayerPortal = ({
   const online = useOnlineStatus();
   const [currentIndex, setCurrentIndex] = useState(player.startIndex);
   const [progress, setProgress] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [holdPaused, setHoldPaused] = useState(false);
+  const [replyFocused, setReplyFocused] = useState(false);
+  const isPaused = holdPaused || replyFocused;
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [liking, setLiking] = useState(false);
@@ -1132,7 +1134,8 @@ const StoryPlayerPortal = ({
 
   useEffect(() => {
     setProgress(0);
-    setPaused(false);
+    setHoldPaused(false);
+    setReplyFocused(false);
     setReplyText("");
     setReplySent(false);
 
@@ -1145,7 +1148,7 @@ const StoryPlayerPortal = ({
   }, [currentIndex]);
 
   useEffect(() => {
-    if (paused) {
+    if (isPaused) {
       clearInterval(progressIntervalRef.current);
       return;
     }
@@ -1168,7 +1171,7 @@ const StoryPlayerPortal = ({
     }, intervalStep);
 
     return () => clearInterval(progressIntervalRef.current);
-  }, [currentIndex, paused, progress]);
+  }, [currentIndex, isPaused, progress]);
 
   useEffect(
     () => () => {
@@ -1368,10 +1371,10 @@ const StoryPlayerPortal = ({
         }}>
         <div
           onClick={handleTap}
-          onMouseDown={() => setPaused(true)}
-          onMouseUp={() => setPaused(false)}
-          onTouchStart={() => setPaused(true)}
-          onTouchEnd={() => setPaused(false)}
+          onMouseDown={() => setHoldPaused(true)}
+          onMouseUp={() => setHoldPaused(false)}
+          onTouchStart={() => setHoldPaused(true)}
+          onTouchEnd={() => setHoldPaused(false)}
           style={{
             position: "absolute",
             inset: 0,
@@ -1642,16 +1645,6 @@ const StoryPlayerPortal = ({
         {canInteract && (
           <div
             onClick={stopBarEvent}
-            onMouseDown={(e) => {
-              stopBarEvent(e);
-              setPaused(true);
-            }}
-            onMouseUp={() => setPaused(false)}
-            onTouchStart={(e) => {
-              stopBarEvent(e);
-              setPaused(true);
-            }}
-            onTouchEnd={() => setPaused(false)}
             style={{
               position: "absolute",
               bottom: 0,
@@ -1704,8 +1697,12 @@ const StoryPlayerPortal = ({
                 value={replyText}
                 disabled={!online || sendingReply}
                 onChange={(e) => setReplyText(e.target.value)}
-                onFocus={() => setPaused(true)}
-                onBlur={() => setPaused(false)}
+                onPointerDown={(e) => {
+                  stopBarEvent(e);
+                  setReplyFocused(true);
+                }}
+                onFocus={() => setReplyFocused(true)}
+                onBlur={() => setReplyFocused(false)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
