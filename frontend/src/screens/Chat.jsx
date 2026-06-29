@@ -12,6 +12,16 @@ import chatBgDark from '../assets/images/chat background/theme1 dark.png';
 
 const READ_TICK_COLOR = '#53bdeb';
 
+const replyPreviewText = (msg) => {
+  if (!msg) return '';
+  if (msg.type === 'story_reply') return msg.text || 'Story reply';
+  if (msg.type === 'image') return '📷 Photo';
+  if (msg.type === 'video') return '🎥 Video';
+  if (msg.type === 'audio') return '🎵 Audio';
+  if (msg.type === 'file') return '📁 File';
+  return msg.text || '';
+};
+
 /** sent → single tick · delivered → double tick · read → blue double tick */
 const MessageStatusTicks = ({ status, size = 12, onDark = false }) => {
   if (status === 'read') {
@@ -114,6 +124,7 @@ const Chat = () => {
   const typingStopTimerRef = useRef(null);
   const isTypingRef = useRef(false);
   const lastTypingWriteRef = useRef(0);
+  const keepComposerFocusRef = useRef(false);
 
   // Paginated history: start by showing only the latest 20 messages, and
   // load 20 more older messages each time the user scrolls near the top.
@@ -134,6 +145,21 @@ const Chat = () => {
     } else {
       messagesEndRef.current?.scrollIntoView({ behavior });
     }
+  };
+
+  /** Keep the soft keyboard open after sending (mobile WebView / Android). */
+  const refocusComposer = useCallback(() => {
+    requestAnimationFrame(() => {
+      const input = textInputRef.current;
+      if (input) {
+        input.focus({ preventScroll: true });
+      }
+    });
+  }, []);
+
+  const preventComposerBlur = (e) => {
+    e.preventDefault();
+    keepComposerFocusRef.current = true;
   };
 
   // Jump to the latest message — retried across frames because the chat mounts
@@ -495,11 +521,12 @@ const Chat = () => {
         editMessageText(me.coupleId, editingMsg.id, text);
         setMessages(prev => prev.map(m => m.id === editingMsg.id ? { ...m, text, isEdited: true } : m));
         setEditingMsg(null);
+        refocusComposer();
         return;
       }
       if (replyToMsg) {
         payload.replyToId = replyToMsg.id;
-        payload.replyToText = replyToMsg.text || (replyToMsg.type === 'image' ? '📷 Photo' : (replyToMsg.type === 'video' ? '🎥 Video' : (replyToMsg.type === 'audio' ? '🎵 Audio' : '📁 File')));
+        payload.replyToText = replyPreviewText(replyToMsg);
         payload.replyToSender = replyToMsg.sender;
         setReplyToMsg(null);
       }
@@ -528,9 +555,11 @@ const Chat = () => {
           }).catch((err) => console.error('Failed to send chat push notification:', err));
         }
       }, 100);
+      refocusComposer();
     } catch (err) {
       console.error('Failed to send message:', err);
       setInputText(text);
+      refocusComposer();
     }
   };
 
@@ -724,7 +753,7 @@ const Chat = () => {
       };
       if (replyToMsg) {
         payload.replyToId = replyToMsg.id;
-        payload.replyToText = replyToMsg.text || (replyToMsg.type === 'image' ? '📷 Photo' : (replyToMsg.type === 'video' ? '🎥 Video' : (replyToMsg.type === 'audio' ? '🎵 Audio' : '📁 File')));
+        payload.replyToText = replyPreviewText(replyToMsg);
         payload.replyToSender = replyToMsg.sender;
         setReplyToMsg(null);
       }
@@ -1054,7 +1083,87 @@ const Chat = () => {
                         </span>
                       </div>
                     )}
-                    {msg.type === 'image' || msg.type === 'video' ? (
+                    {msg.type === 'story_reply' ? (
+                      <div style={{ minWidth: '200px' }}>
+                        <div
+                          onClick={() => navigate('/dashboard')}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '8px',
+                            marginBottom: '8px',
+                            borderRadius: '12px',
+                            backgroundColor: 'rgba(0,0,0,0.08)',
+                            cursor: 'pointer',
+                            borderLeft: '3px solid var(--blush-pink)',
+                          }}
+                        >
+                          <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            backgroundColor: 'rgba(0,0,0,0.15)',
+                          }}>
+                            {msg.storyMediaUrl ? (
+                              msg.storyMediaType === 'video' ? (
+                                <video
+                                  src={msg.storyMediaUrl}
+                                  preload="metadata"
+                                  muted
+                                  playsInline
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <img
+                                  src={msg.storyMediaUrl}
+                                  alt="Story"
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              )
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📖</div>
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <p style={{ fontSize: '11px', margin: 0, fontWeight: 600, opacity: 0.8 }}>Replied to story</p>
+                            <p style={{
+                              fontSize: '12px',
+                              margin: 0,
+                              marginTop: '2px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              opacity: 0.75,
+                            }}>
+                              {msg.storyCaption || 'Story'}
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                          <p style={{ fontSize: '15px', margin: 0, wordBreak: 'break-word', lineHeight: 1.3 }}>
+                            {msg.text}
+                          </p>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            opacity: 0.6,
+                            flexShrink: 0,
+                            marginLeft: 'auto',
+                          }}>
+                            <p style={{ fontSize: '10px', margin: 0, whiteSpace: 'nowrap' }}>{msgTime}</p>
+                            {isMine && (
+                              <span style={{ display: 'flex' }}>
+                                <MessageStatusTicks status={msg.status} size={12} />
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : msg.type === 'image' || msg.type === 'video' ? (
                       <div
                         style={{ position: 'relative', cursor: 'pointer' }}
                         onClick={() => openMediaViewer(msg)}
@@ -1338,7 +1447,7 @@ const Chat = () => {
                   {editingMsg ? 'Editing Message' : `Replying to ${replyToMsg?.sender === String(me._id) ? 'You' : (partner?.name || 'Partner')}`}
                 </span>
                 <span style={{ fontSize: '13px', color: 'var(--text-sub)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {editingMsg ? editingMsg.text : (replyToMsg?.text || (replyToMsg?.type === 'image' ? '📷 Photo' : (replyToMsg?.type === 'video' ? '🎥 Video' : (replyToMsg?.type === 'audio' ? '🎵 Audio' : '📁 File'))))}
+                  {editingMsg ? editingMsg.text : replyPreviewText(replyToMsg)}
                 </span>
               </div>
               <X size={20} color="var(--text-sub)" style={{ cursor: 'pointer', padding: '4px' }} onClick={() => { setReplyToMsg(null); setEditingMsg(null); setInputText(''); }} />
@@ -1414,6 +1523,11 @@ const Chat = () => {
                 requestAnimationFrame(() => scrollToBottom('auto'));
               }}
               onBlur={() => {
+                if (keepComposerFocusRef.current) {
+                  keepComposerFocusRef.current = false;
+                  refocusComposer();
+                  return;
+                }
                 setComposerActive(false);
                 stopTyping();
               }}
@@ -1441,6 +1555,8 @@ const Chat = () => {
           <motion.button
             type="button"
             whileTap={{ scale: 0.92 }}
+            onPointerDown={preventComposerBlur}
+            onMouseDown={preventComposerBlur}
             onClick={handleSendMessage}
             style={{
               flexShrink: 0,

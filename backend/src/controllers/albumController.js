@@ -8,6 +8,23 @@ import {
 } from '../utils/albumTokens.js';
 import { isAdmin, notDeletedFilter, visiblePhotos } from '../utils/accessControl.js';
 
+const isStockCover = (url) => !url || url.includes('picsum.photos');
+
+/** Keep album.cover aligned with the first visible image in the album. */
+const syncAlbumCover = (album) => {
+  const visible = (album.photos || []).filter((p) => !p.deletedAt && p.img);
+  const pick = visible.find((p) => p.mediaType !== 'video') || visible[0];
+  if (pick) {
+    album.cover = pick.img;
+    album.coverPublicId = pick.publicId || '';
+    return;
+  }
+  if (isStockCover(album.cover)) {
+    album.cover = '';
+    album.coverPublicId = '';
+  }
+};
+
 // Best-effort destroy — never throws so a missing/orphan asset doesn't fail a delete request
 const destroyAsset = async (publicId) => {
   if (!publicId) return;
@@ -50,6 +67,11 @@ const sanitize = (album, req) => {
 // is intentionally kept so the user can recognise the album in the vault.
 const stripPrivateContent = (album, req) => {
   const safe = sanitize(album, req);
+  if (isStockCover(safe.cover)) {
+    const visible = visiblePhotos(album.photos || [], req);
+    const pick = visible.find((p) => p.mediaType !== 'video' && p.img) || visible.find((p) => p.img);
+    if (pick) safe.cover = pick.img;
+  }
   return {
     ...safe,
     description: '',
@@ -247,6 +269,7 @@ export const addPhoto = asyncHandler(async (req, res) => {
   if (album.isPrivate && !ensureAlbumUnlock(req, res, album)) return;
 
   album.photos.push(req.body);
+  syncAlbumCover(album);
   await album.save();
   res.status(201).json(sanitize(album, req));
 });
@@ -277,6 +300,7 @@ export const deletePhoto = asyncHandler(async (req, res) => {
 
   photo.deletedAt = new Date();
   photo.deletedBy = req.user._id;
+  syncAlbumCover(album);
   await album.save();
   res.json(sanitize(album, req));
 });
@@ -312,6 +336,7 @@ export const deletePhotos = asyncHandler(async (req, res) => {
     album.photos = album.photos.filter((p) => !photoIds.includes(p._id.toString()));
   }
 
+  syncAlbumCover(album);
   await album.save();
   res.json(sanitize(album, req));
 });
@@ -365,6 +390,9 @@ export const movePhotos = asyncHandler(async (req, res) => {
   }));
   
   targetAlbum.photos.push(...newPhotos);
+
+  syncAlbumCover(sourceAlbum);
+  syncAlbumCover(targetAlbum);
 
   await sourceAlbum.save();
   await targetAlbum.save();

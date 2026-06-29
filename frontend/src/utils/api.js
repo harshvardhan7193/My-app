@@ -745,6 +745,25 @@ class ApiClient {
     });
   }
 
+  likeStory(id) {
+    return this.request(`/stories/${id}/like`, {
+      method: 'PATCH',
+    });
+  }
+
+  reactToStory(id, emoji) {
+    return this.request(`/stories/${id}/react`, {
+      method: 'POST',
+      body: { emoji },
+    });
+  }
+
+  removeStoryReaction(id) {
+    return this.request(`/stories/${id}/react`, {
+      method: 'DELETE',
+    });
+  }
+
   // --- Chat Moderation API (admin) ---
   // Couple members read/write chat via Firebase RTDB directly; these endpoints
   // are used by the admin panel for history / moderation.
