@@ -333,8 +333,7 @@ const Albums = () => {
                 </div>
               </div>
               
-              <h3 style={{ fontSize: '18px', marginBottom: '4px', color: 'var(--text-main)' }}>{album.title}</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Collaborative</p>
+              <h3 style={{ fontSize: '18px', color: 'var(--text-main)' }}>{album.title}</h3>
             </motion.div>
           );
         })}
