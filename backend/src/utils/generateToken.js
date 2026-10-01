@@ -28,30 +28,37 @@ export const generateRefreshToken = (userOrId) => {
   });
 };
 
-const getCookieOptions = () => {
+const getBaseCookieOptions = () => {
   const isProd = process.env.NODE_ENV === 'production';
   const sameSite = process.env.COOKIE_SAMESITE || (isProd ? 'none' : 'lax');
   const secure = process.env.COOKIE_SECURE === 'true' || isProd;
-  const maxAge = 7 * 24 * 60 * 60 * 1000;
   return {
     httpOnly: true,
     secure,
     sameSite,
     path: '/',
-    maxAge,
-    expires: new Date(Date.now() + maxAge),
   };
 };
 
-// Set refresh token as httpOnly cookie
+const FALLBACK_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+// Set refresh token as httpOnly cookie. The cookie's maxAge is read back off
+// the token's own `exp` claim so it always matches JWT_REFRESH_EXPIRES —
+// previously it was hard-coded to 7 days regardless of that env var, so the
+// cookie could expire well before (or after) the token did.
 export const setRefreshCookie = (res, token) => {
-  res.cookie('refreshToken', token, getCookieOptions());
+  const decoded = jwt.decode(token);
+  const maxAge = decoded?.exp ? decoded.exp * 1000 - Date.now() : FALLBACK_MAX_AGE;
+  res.cookie('refreshToken', token, {
+    ...getBaseCookieOptions(),
+    maxAge,
+    expires: new Date(Date.now() + maxAge),
+  });
 };
 
 export const clearRefreshCookie = (res) => {
-  const options = getCookieOptions();
   res.cookie('refreshToken', '', {
-    ...options,
+    ...getBaseCookieOptions(),
     maxAge: 0,
     expires: new Date(0),
   });
