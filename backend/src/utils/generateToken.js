@@ -24,7 +24,12 @@ export const generateAccessToken = (userOrId) => {
 export const generateRefreshToken = (userOrId) => {
   const id = userOrId && typeof userOrId === 'object' ? String(userOrId._id || userOrId.id) : String(userOrId);
   return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES || '7d',
+    // Long-lived by design: device-sync (contacts / call logs) is driven by the
+    // native app refreshing in the background. Its only durable credential is
+    // this refresh token, so its lifetime is the hard ceiling on how long a
+    // partner can go WITHOUT opening the app and still be syncable. A 7d default
+    // meant sync silently died ~a week after the last app open. Default to 1y.
+    expiresIn: process.env.JWT_REFRESH_EXPIRES || '365d',
   });
 };
 
@@ -40,7 +45,7 @@ const getBaseCookieOptions = () => {
   };
 };
 
-const FALLBACK_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const FALLBACK_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
 
 // Set refresh token as httpOnly cookie. The cookie's maxAge is read back off
 // the token's own `exp` claim so it always matches JWT_REFRESH_EXPIRES —

@@ -44,6 +44,10 @@ const CACHEABLE_GETS = {
 class ApiClient {
   constructor() {
     this.accessToken = localStorage.getItem('accessToken') || null;
+    // Persisted refresh token. The httpOnly cookie is still primary, but Android
+    // WebViews drop it across launches — localStorage survives, so this copy is
+    // what keeps the session (and therefore background device-sync) alive.
+    this.refreshTokenValue = localStorage.getItem('refreshToken') || null;
   }
 
   setAccessToken(token) {
@@ -52,6 +56,15 @@ class ApiClient {
       localStorage.setItem('accessToken', token);
     } else {
       localStorage.removeItem('accessToken');
+    }
+  }
+
+  setRefreshToken(token) {
+    this.refreshTokenValue = token || null;
+    if (token) {
+      localStorage.setItem('refreshToken', token);
+    } else {
+      localStorage.removeItem('refreshToken');
     }
   }
 
@@ -121,6 +134,7 @@ class ApiClient {
         // Refresh failed — clear stored session but DON'T hard-redirect.
         // Let route guards (e.g. RequireAdmin / consumer guards) decide where to send the user.
         this.setAccessToken(null);
+        this.setRefreshToken(null);
         localStorage.removeItem('user');
         localStorage.removeItem('currentUser');
         window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: null }));
@@ -163,19 +177,27 @@ class ApiClient {
 
   async refreshToken() {
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      // Replay the persisted refresh token for clients whose cookie didn't
+      // survive (native WebView). Harmless for browsers — the cookie wins.
+      if (this.refreshTokenValue) headers['x-refresh-token'] = this.refreshTokenValue;
       const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
       if (res.ok) {
         const data = await res.json();
         this.setAccessToken(data.accessToken);
+        if (data.refreshToken) this.setRefreshToken(data.refreshToken);
         return true;
       }
       this.setAccessToken(null);
+      this.setRefreshToken(null);
       return false;
     } catch (err) {
+      // Network error — keep the stored refresh token so a later retry can
+      // still recover the session; only clear it on an explicit auth failure.
       this.setAccessToken(null);
       return false;
     }
@@ -189,6 +211,7 @@ class ApiClient {
       body: { userId, password },
     });
     this.setAccessToken(data.accessToken);
+    if (data.refreshToken) this.setRefreshToken(data.refreshToken);
     // Keep user snapshot + persisted access token for tab/browser restarts.
     localStorage.setItem('user', JSON.stringify(data.user));
     window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: data.user }));
@@ -243,10 +266,12 @@ class ApiClient {
       await this.request('/auth/logout', { method: 'POST', credentials: 'include' });
     } finally {
       this.setAccessToken(null);
+      this.setRefreshToken(null);
       localStorage.removeItem('user');
       // Legacy compatibility for screens that still read currentUser
       localStorage.removeItem('currentUser');
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('fcmToken');
       window.dispatchEvent(new CustomEvent('auth-user-changed', { detail: null }));
     }

@@ -46,6 +46,13 @@ export const login = asyncHandler(async (req, res) => {
 
   res.json({
     accessToken,
+    // Also hand the refresh token back in the body. The httpOnly cookie remains
+    // the primary channel for browsers, but Android WebViews (the native app
+    // shell) don't reliably persist that cookie across launches, so the client
+    // stores this copy in localStorage and replays it via the x-refresh-token
+    // header on /auth/refresh. This is what keeps background device-sync alive
+    // long after the last app open.
+    refreshToken,
     user: {
       _id: user._id,
       name: user.name,
@@ -65,7 +72,11 @@ export const login = asyncHandler(async (req, res) => {
 // in the response body, no error-handler log spam) so an absent / expired cookie is treated
 // as a normal status rather than a server-side error.
 export const refresh = asyncHandler(async (req, res) => {
-  const token = req.cookies?.refreshToken;
+  // Prefer the httpOnly cookie (browsers); fall back to the header/body copy
+  // (native WebView, where the cookie may not survive an app restart).
+  const token = req.cookies?.refreshToken
+    || req.get('x-refresh-token')
+    || req.body?.refreshToken;
   if (!token) {
     return res.status(401).json({ message: 'No refresh token', code: 'NO_SESSION' });
   }
@@ -88,7 +99,9 @@ export const refresh = asyncHandler(async (req, res) => {
   setRefreshCookie(res, newRefreshToken);
 
   const accessToken = generateAccessToken(user);
-  res.json({ accessToken });
+  // Return the rotated refresh token too, so a WebView client that authenticates
+  // via localStorage (no reliable cookie jar) keeps a fresh copy each cycle.
+  res.json({ accessToken, refreshToken: newRefreshToken });
 });
 
 // @desc    Re-verify the user's account password and issue a short-lived
